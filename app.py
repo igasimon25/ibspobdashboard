@@ -775,7 +775,7 @@ if not df_tsel_agent.empty:
     </body>
     </html>
     """
-    components.html(full_html_tsel, height=850, scrolling=False)
+    components.html(full_html_tsel, height=650, scrolling=False)
 
 def generate_risk_vat_summary(df):
     df_calc = df.copy()
@@ -973,7 +973,7 @@ if not df_risk_vat.empty:
     </body>
     </html>
     """
-    components.html(full_html_vat, height=550, scrolling=True)
+    components.html(full_html_vat, height=650, scrolling=False)
 
 # ==========================================
 # 12. MANAGEMENT FEE PROCESS SUMMARY
@@ -1138,7 +1138,7 @@ if not df_manfee.empty:
     </body>
     </html>
     """
-    components.html(full_html_mf, height=480, scrolling=True)
+    components.html(full_html_mf, height=580, scrolling=False)
 
 # ==========================================
 # 13. STATUS REJECTION SAP SUMMARY (DROPDOWN MULTI-SELECT)
@@ -1303,7 +1303,7 @@ if not df_reject_summary.empty and col_reg_name:
     </body>
     </html>
     """
-    components.html(full_html_reject, height=400, scrolling=True)
+    components.html(full_html_reject, height=650, scrolling=False)
 else:
     st.info("Tidak ada data dengan Status SAP 'Rejected' yang sesuai dengan pilihan filter saat ini.")
 
@@ -1578,6 +1578,6 @@ if not df_trk_res.empty:
     </body>
     </html>
     """
-    components.html(full_trk_html, height=520, scrolling=False)
+    components.html(full_trk_html, height=600, scrolling=False)
 else:
     st.warning("Data Tracking Invoice tidak ditemukan berdasarkan filter yang dipilih.")
