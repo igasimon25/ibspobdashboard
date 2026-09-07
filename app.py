@@ -1044,7 +1044,7 @@ def generate_manfee_summary(df):
 
     # Grand Total Row
     grand_total = pd.DataFrame([{
-        col_m: '(blank)',
+        col_m: 'Grand Total',
         'MANFEE_NY': summary['MANFEE_NY'].sum(),
         'MANFEE_PAID': summary['MANFEE_PAID'].sum(),
         'AGENT_NY': summary['AGENT_NY'].sum(),
@@ -1071,7 +1071,7 @@ if not df_manfee.empty:
         val_m = row[col_m_mf]
         is_total = (val_m == '(blank)' or val_m == 'Grand Total')
         if pd.isna(val_m) or str(val_m).strip().lower() in ['nan', 'none', '']:
-            val_m = "(blank)"
+            val_m = "(Grand Total)"
 
         row_style = "background-color: #ffffff; font-weight: bold;" if is_total else ("background-color: #ffffff;" if idx % 2 == 0 else "background-color: #f9f9f9;")
 
