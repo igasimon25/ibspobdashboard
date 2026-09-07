@@ -99,6 +99,59 @@ except Exception as e:
 df_filtered = df_raw.copy()
 
 # ==========================================
+# HELPER: URUTKAN LABEL BULAN SECARA KRONOLOGIS
+# ==========================================
+def sort_month_labels(values):
+    """Urutkan daftar label bulan (mis. 'Sep-24', 'Oct 2024', dsb) secara
+    kronologis dari yang paling awal ke paling baru. Format yang tidak
+    bisa di-parse tetap disertakan di akhir (urut alfabet) agar data
+    tidak hilang."""
+    unique_vals = []
+    seen = set()
+    for v in values:
+        v_str = str(v).strip()
+        if v_str.lower() in ['nan', 'none', ''] or v_str in seen:
+            continue
+        seen.add(v_str)
+        unique_vals.append(v_str)
+
+    date_formats = ['%b-%y', '%b-%Y', '%B-%y', '%B-%Y', '%b %Y', '%B %Y',
+                     '%Y-%m', '%m-%Y', '%m/%Y', '%b/%y', '%b/%Y']
+
+    def parse_month(v_str):
+        for fmt in date_formats:
+            try:
+                return pd.to_datetime(v_str, format=fmt)
+            except (ValueError, TypeError):
+                continue
+        try:
+            return pd.to_datetime(v_str)
+        except (ValueError, TypeError):
+            return pd.NaT
+
+    parsed = [(v, parse_month(v)) for v in unique_vals]
+    parsed.sort(key=lambda x: (pd.isna(x[1]), x[1] if not pd.isna(x[1]) else pd.Timestamp.min, x[0]))
+    return [v for v, _ in parsed]
+
+
+def sort_summary_by_month(summary_df, col_m, total_labels=('Grand Total', '(blank)')):
+    """Urutkan baris hasil groupby berdasarkan bulan secara kronologis,
+    dengan baris total (Grand Total / (blank)) tetap di akhir tabel."""
+    if summary_df.empty or col_m not in summary_df.columns:
+        return summary_df
+
+    mask_total = summary_df[col_m].astype(str).isin(total_labels)
+    df_months = summary_df[~mask_total].copy()
+    df_totals = summary_df[mask_total].copy()
+
+    month_order = sort_month_labels(df_months[col_m])
+    df_months[col_m] = pd.Categorical(df_months[col_m], categories=month_order, ordered=True)
+    df_months = df_months.sort_values(col_m).reset_index(drop=True)
+    df_months[col_m] = df_months[col_m].astype(str)
+
+    return pd.concat([df_months, df_totals], ignore_index=True)
+
+# ==========================================
 # 3. SIDEBAR CONTROL & GLOBAL FILTERS
 # ==========================================
 st.sidebar.header("🔍 Global Filters")
@@ -115,7 +168,7 @@ if 'Area' in df_raw.columns:
 # Filter Payment Month
 col_month = 'Payment Month' if 'Payment Month' in df_filtered.columns else ('Month' if 'Month' in df_filtered.columns else None)
 if col_month and col_month in df_filtered.columns:
-    list_month = ["(All Months)"] + [str(x) for x in df_filtered[col_month].dropna().unique().tolist() if str(x).lower() not in ['nan', 'none', '']]
+    list_month = ["(All Months)"] + sort_month_labels(df_filtered[col_month])
     selected_month = st.sidebar.selectbox("Payment Month Filter", options=list_month, index=0)
     if selected_month != "(All Months)":
         df_filtered = df_filtered[df_filtered[col_month].astype(str) == selected_month]
@@ -523,7 +576,8 @@ def generate_reimbursement_summary_table(df):
         'GAP': summary['GAP'].sum()
     }])
 
-    return pd.concat([summary, grand_total], ignore_index=True), col_m
+    result = pd.concat([summary, grand_total], ignore_index=True)
+    return sort_summary_by_month(result, col_m), col_m
 
 df_summary_raw, col_month_name = generate_reimbursement_summary_table(df_filtered)
 
@@ -638,6 +692,7 @@ def generate_tsel_agent_summary(df):
     }])
 
     full_summary = pd.concat([summary, grand_total], ignore_index=True)
+    full_summary = sort_summary_by_month(full_summary, col_m)
 
     # Formulas % Done
     full_summary['PCT_TSEL'] = np.where(full_summary['NET AMOUNT'] > 0, (full_summary['INV_DONE'] / full_summary['NET AMOUNT']) * 100, 0.0)
@@ -782,7 +837,7 @@ def generate_risk_vat_summary(df):
         'VAT_LOSS': summary['VAT_LOSS'].sum()
     }])
 
-    return pd.concat([summary, grand_total], ignore_index=True), col_m
+    return sort_summary_by_month(pd.concat([summary, grand_total], ignore_index=True), col_m), col_m
 # ==========================================
 # 11. RISK VAT HUAWEI SUMMARY
 # ==========================================
@@ -849,7 +904,7 @@ def generate_risk_vat_summary(df):
         'VAT_LOSS': summary['VAT_LOSS'].sum()
     }])
 
-    return pd.concat([summary, grand_total], ignore_index=True), col_m
+    return sort_summary_by_month(pd.concat([summary, grand_total], ignore_index=True), col_m), col_m
 
 df_risk_vat, col_m_vat = generate_risk_vat_summary(df_filtered)
 
@@ -998,7 +1053,7 @@ def generate_manfee_summary(df):
         'HUAWEI_PAID': summary['HUAWEI_PAID'].sum()
     }])
 
-    return pd.concat([summary, grand_total], ignore_index=True), col_m
+    return sort_summary_by_month(pd.concat([summary, grand_total], ignore_index=True), col_m), col_m
 
 df_manfee, col_m_mf = generate_manfee_summary(df_filtered)
 
