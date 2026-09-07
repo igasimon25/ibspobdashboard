@@ -185,33 +185,17 @@ if 'new regional' in df_filtered.columns:
     if selected_reg != "(All Regionals)":
         df_filtered = df_filtered[df_filtered['new regional'].astype(str) == selected_reg]
 
-import io
-
-# Letakkan kode ini di bagian Global Filter / Sidebar aplikasi Streamlit Anda
+# --- TOMBOL DOWNLOAD ALL GOOGLE SHEET ---
 st.sidebar.markdown("---")
 st.sidebar.subheader("📥 Download Data")
-
-# Fungsi untuk mengubah DataFrame dari Google Sheet menjadi format Excel (.xlsx)
-@st.cache_data
-def convert_df_to_excel(dataframe):
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        dataframe.to_excel(writer, index=False, sheet_name='Data_GSheet')
-    return output.getvalue()
-
-# Pastikan variabel 'df' di bawah ini adalah DataFrame utama Anda yang ditarik dari Google Sheet
-if 'df' in locals() or 'df' in globals():
-    excel_data = convert_df_to_excel(df)
-    
-    st.sidebar.download_button(
-        label="📥 Download All (Excel)",
-        data=excel_data,
-        file_name="google_sheets_all_data.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        use_container_width=True
-    )
-else:
-    st.sidebar.warning("Variabel DataFrame utama ('df') tidak ditemukan.")
+excel_data = convert_df_to_excel(df_filtered)  <-- Diubah menjadi 'df_filtered'
+st.sidebar.download_button(
+    label="📥 Download All (Excel)",
+    data=excel_data,
+    file_name="google_sheets_all_data.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    use_container_width=True
+)
 
 # ==========================================
 # FUNGSI HELPER: COMPACT DONUT CHART (KPI)
