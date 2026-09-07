@@ -188,7 +188,7 @@ if 'new regional' in df_filtered.columns:
 # --- TOMBOL DOWNLOAD ALL GOOGLE SHEET ---
 st.sidebar.markdown("---")
 st.sidebar.subheader("📥 Download Data")
-excel_data = convert_df_to_excel(df_filtered)  <-- Diubah menjadi 'df_filtered'
+excel_data = convert_df_to_excel(df_filtered)
 st.sidebar.download_button(
     label="📥 Download All (Excel)",
     data=excel_data,
@@ -196,7 +196,6 @@ st.sidebar.download_button(
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     use_container_width=True
 )
-
 # ==========================================
 # FUNGSI HELPER: COMPACT DONUT CHART (KPI)
 # ==========================================
