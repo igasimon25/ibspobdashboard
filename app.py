@@ -185,17 +185,7 @@ if 'new regional' in df_filtered.columns:
     if selected_reg != "(All Regionals)":
         df_filtered = df_filtered[df_filtered['new regional'].astype(str) == selected_reg]
 
-# --- TOMBOL DOWNLOAD ALL GOOGLE SHEET ---
-st.sidebar.markdown("---")
-st.sidebar.subheader("📥 Download Data")
-excel_data = convert_df_to_excel(df_filtered)
-st.sidebar.download_button(
-    label="📥 Download All (Excel)",
-    data=excel_data,
-    file_name="google_sheets_all_data.xlsx",
-    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    use_container_width=True
-)
+
 # ==========================================
 # FUNGSI HELPER: COMPACT DONUT CHART (KPI)
 # ==========================================
