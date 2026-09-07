@@ -134,9 +134,9 @@ def sort_month_labels(values):
     return [v for v, _ in parsed]
 
 
-def sort_summary_by_month(summary_df, col_m, total_labels=('Grand Total')):
+def sort_summary_by_month(summary_df, col_m, total_labels=('Grand Total', '(blank)')):
     """Urutkan baris hasil groupby berdasarkan bulan secara kronologis,
-    dengan baris total (Grand Total ) tetap di akhir tabel."""
+    dengan baris total (Grand Total/, blank ) tetap di akhir tabel."""
     if summary_df.empty or col_m not in summary_df.columns:
         return summary_df
 
