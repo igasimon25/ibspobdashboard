@@ -36,11 +36,18 @@ def load_data():
     df = pd.read_csv(SHEET_CSV_URL)
     df.columns = df.columns.astype(str).str.strip()
 
-    # 🛠️ BUANG KOLOM DUPLIKAT (misal ada 2 kolom "Invoice Amount" karena
-    # salah satunya punya spasi ekstra sebelum dibersihkan) — ambil yang
-    # pertama muncul saja, supaya df[nama_kolom] selalu 1 kolom (Series).
+    # 🛠️ GABUNGKAN KOLOM DUPLIKAT (misal ada 2 kolom "Invoice Amount" karena
+    # salah satunya punya spasi ekstra sebelum dibersihkan). Untuk tiap nama
+    # yang duplikat, ambil nilai yang TIDAK kosong dari kolom manapun per
+    # baris (bukan asal pilih kolom pertama, supaya data asli tidak hilang
+    # kalau ternyata kolom pertama yang kosong).
     if df.columns.duplicated().any():
-        df = df.loc[:, ~df.columns.duplicated()]
+        dup_names = df.columns[df.columns.duplicated()].unique()
+        for name in dup_names:
+            same_cols = df.loc[:, df.columns == name]
+            merged = same_cols.bfill(axis=1).iloc[:, 0]
+            df = df.loc[:, df.columns != name]
+            df[name] = merged
     
     # 🛠️ PEMBERSIHAN KOLOM AREA (SERAGAMKAN FORMAT "Area 2")
     if 'Area' in df.columns:
@@ -61,6 +68,17 @@ except Exception as e:
         f"SHEET_ID/SHEET_GID. Detail error: {e}"
     )
     st.stop()
+
+with st.sidebar.expander("🛠️ Debug: Cek Data (klik untuk buka)"):
+    st.write(f"Jumlah baris: {len(df_raw)}")
+    st.write("Daftar kolom yang terbaca dari Google Sheets:")
+    st.write(list(df_raw.columns))
+    for col_check in ['NET AMOUNT', 'Invoice Agent', 'Status Reimburse Actual', 'Status', 'Invoice Amount']:
+        if col_check in df_raw.columns:
+            n_non_null = df_raw[col_check].notna().sum()
+            st.write(f"✅ '{col_check}' ada — {n_non_null} baris terisi")
+        else:
+            st.write(f"❌ '{col_check}' TIDAK ditemukan di sheet")
 
 df_filtered = df_raw.copy()
 
