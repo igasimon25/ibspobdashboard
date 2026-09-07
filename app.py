@@ -641,7 +641,7 @@ if not df_summary_raw.empty:
     </body>
     </html>
     """
-    components.html(full_html, height=550, scrolling=False)
+    components.html(full_html, height=650, scrolling=False)
 
 # ==========================================
 # 10. REIMBURSEMENT SUMMARY TO TSEL & AGENT
