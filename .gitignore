@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+
+# Jangan commit secrets asli
+.streamlit/secrets.toml
+
+# File data lokal lama (sudah tidak dipakai, sumber data sekarang Google Sheets)
+data_pobibs.xlsx
