@@ -1044,7 +1044,7 @@ def generate_manfee_summary(df):
 
     # Grand Total Row
     grand_total = pd.DataFrame([{
-        col_m: 'Grand Total',
+        col_m: 'Blank',
         'MANFEE_NY': summary['MANFEE_NY'].sum(),
         'MANFEE_PAID': summary['MANFEE_PAID'].sum(),
         'AGENT_NY': summary['AGENT_NY'].sum(),
