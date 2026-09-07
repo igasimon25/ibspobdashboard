@@ -4,7 +4,12 @@ import numpy as np
 import plotly.graph_objects as go
 import streamlit.components.v1 as components
 import re
-
+@st.cache_data
+def convert_df_to_excel(dataframe):
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        dataframe.to_excel(writer, index=False, sheet_name='Data_GSheet')
+    return output.getvalue()
 # ==========================================
 # 1. KONFIGURASI HALAMAN & HEADER
 # ==========================================
@@ -1609,3 +1614,18 @@ edited_df = st.data_editor(
 if st.button("Simpan / Proses Data"):
     st.success("Data berhasil diperbarui!")
     st.dataframe(edited_df, use_container_width=True)
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("📥 Download Data")
+
+if 'df' in locals() or 'df' in globals():
+    excel_data = convert_df_to_excel(df)
+    st.sidebar.download_button(
+        label="📥 Download All (Excel)",
+        data=excel_data,
+        file_name="google_sheets_all_data.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True
+    )
+else:
+    st.sidebar.warning("Variabel DataFrame utama ('df') tidak ditemukan.")
