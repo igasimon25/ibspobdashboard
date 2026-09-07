@@ -1585,7 +1585,7 @@ else:
 import streamlit as st
 import pandas as pd
 
-st.subheader("📝 Form Input Manual (Free Text)")
+st.subheader("📝 REMARK NY Received Invoice (Free Text)")
 
 # Menyiapkan data awal kosong sesuai kolom pada gambar
 initial_data = pd.DataFrame({
