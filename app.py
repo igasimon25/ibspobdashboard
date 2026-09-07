@@ -1581,3 +1581,31 @@ if not df_trk_res.empty:
     components.html(full_trk_html, height=600, scrolling=False)
 else:
     st.warning("Data Tracking Invoice tidak ditemukan berdasarkan filter yang dipilih.")
+
+import streamlit as st
+import pandas as pd
+
+st.subheader("📝 Form Input Manual (Free Text)")
+
+# Menyiapkan data awal kosong sesuai kolom pada gambar
+initial_data = pd.DataFrame({
+    "No": [1, 2, 3, 4],
+    "Site ID": ["", "", "", ""],
+    "Sitename": ["", "", "", ""],
+    "Supplier Name": ["", "", "", ""],
+    "Regional": ["", "", "", ""],
+    "Remark": ["", "", "", ""]
+})
+
+# Menggunakan st.data_editor agar tabel bisa diisi/edit secara manual dan dinamis
+edited_df = st.data_editor(
+    initial_data,
+    num_rows="dynamic",
+    use_container_width=True,
+    key="manual_input_table"
+)
+
+# Tombol untuk memproses atau melihat data hasil input pengguna
+if st.button("Simpan / Proses Data"):
+    st.success("Data berhasil diperbarui!")
+    st.dataframe(edited_df, use_container_width=True)
