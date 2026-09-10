@@ -578,7 +578,8 @@ def generate_reimbursement_summary_table(df):
         'Amount Paid': 'sum'
     })
 
-    summary['GAP'] = summary['NET AMOUNT'] - summary['Amount Paid Based on Setoff Data']
+    # Perhitungan GAP diubah menjadi NET AMOUNT - Amount Paid
+    summary['GAP'] = summary['NET AMOUNT'] - summary['Amount Paid']
 
     grand_total = pd.DataFrame([{
         col_m: 'Grand Total',
@@ -612,7 +613,6 @@ if not df_summary_raw.empty:
 
         row_style = "background-color: #b4c6e7; font-weight: bold;" if is_total else ("background-color: #ffffff;" if idx % 2 == 0 else "background-color: #f2f2f2;")
 
-        # Atur kondisi tampilan cell kolom Amount Paid Setoff berdasarkan checkbox
         display_style_setoff = "" if show_setoff_col else "display: none;"
 
         rows_html += f"""
@@ -626,7 +626,6 @@ if not df_summary_raw.empty:
         </tr>
         """
 
-    # Atur kondisi tampilan header kolom Amount Paid Setoff berdasarkan checkbox
     header_style_setoff = "" if show_setoff_col else "display: none;"
 
     full_html = f"""
