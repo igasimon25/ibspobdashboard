@@ -547,6 +547,9 @@ st.markdown("---")
 # ==========================================
 st.subheader("📊 Process Reimbursement Summary")
 
+# Tambahkan Checkbox untuk Hide / Show kolom Amount Paid Setoff
+show_setoff_col = st.checkbox("Show 'Amount Paid Setoff' Column", value=True, key="toggle_setoff_col")
+
 def generate_reimbursement_summary_table(df):
     df_calc = df.copy()
     num_cols = ['NET AMOUNT', 'Amount SAP', 'Amount Paid Based on Setoff Data', 'Amount Paid']
@@ -609,16 +612,22 @@ if not df_summary_raw.empty:
 
         row_style = "background-color: #b4c6e7; font-weight: bold;" if is_total else ("background-color: #ffffff;" if idx % 2 == 0 else "background-color: #f2f2f2;")
 
+        # Atur kondisi tampilan cell kolom Amount Paid Setoff berdasarkan checkbox
+        display_style_setoff = "" if show_setoff_col else "display: none;"
+
         rows_html += f"""
         <tr style="{row_style}">
             <td style="text-align: center; border: 1px solid #7f7f7f; padding: 5px;">{val_m}</td>
             <td style="text-align: right; font-weight: bold; border: 1px solid #7f7f7f; padding: 5px;">{fmt_rp(row['NET AMOUNT'])}</td>
             <td style="text-align: right; border: 1px solid #7f7f7f; padding: 5px;">{fmt_rp(row['Amount SAP Filtered'])}</td>
-            <td style="text-align: right; border: 1px solid #7f7f7f; padding: 5px;">{fmt_rp(row['Amount Paid Based on Setoff Data'])}</td>
+            <td style="text-align: right; border: 1px solid #7f7f7f; padding: 5px; {display_style_setoff}">{fmt_rp(row['Amount Paid Based on Setoff Data'])}</td>
             <td style="text-align: right; border: 1px solid #7f7f7f; padding: 5px;">{fmt_rp(row['Amount Paid'])}</td>
             <td style="text-align: right; font-weight: bold; border: 1px solid #7f7f7f; padding: 5px;">{fmt_rp(row['GAP'])}</td>
         </tr>
         """
+
+    # Atur kondisi tampilan header kolom Amount Paid Setoff berdasarkan checkbox
+    header_style_setoff = "" if show_setoff_col else "display: none;"
 
     full_html = f"""
     <!DOCTYPE html>
@@ -638,7 +647,7 @@ if not df_summary_raw.empty:
                     <th style="background-color: #d9e1f2; width: 12%;">Payment Month</th>
                     <th style="background-color: #b4c6e7;">NET AMOUNT</th>
                     <th style="background-color: #b4c6e7;">Amount SAP</th>
-                    <th style="background-color: #b4c6e7;">Amount Paid Setoff</th>
+                    <th style="background-color: #b4c6e7; {header_style_setoff}">Amount Paid Setoff</th>
                     <th style="background-color: #b4c6e7;">Amount Paid</th>
                     <th style="background-color: #b4c6e7;">GAP</th>
                 </tr>
