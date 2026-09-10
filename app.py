@@ -280,10 +280,17 @@ with col5:
     col_status, col_amt = 'Status Reimburse Actual', 'NET AMOUNT'
     if col_status in df_c5.columns and col_amt in df_c5.columns:
         status_clean = df_c5[col_status].astype(str).str.upper().str.strip()
-        mask_paid = status_clean == 'PAID'
-        val_payin_huawei = df_c5[mask_paid][col_amt].sum()
-        mask_ny = status_clean.isin(['DN ISSUED', 'NY ISSUE DN'])
-        ny_val = df_c5[mask_ny][col_amt].sum()
+        
+        # Ambil basis data dari kelompok DN Issued
+        mask_base_dn = status_clean.isin(['DN ISSUED', 'NY ISSUE DN', 'PAID']) # Sesuaikan cakupan status terkait
+        df_base = df_c5[mask_base_dn]
+        
+        # Hitung bagian yang sudah Pay In (angka target 69.58)
+        val_payin_huawei = df_base[df_base[col_status].astype(str).str.upper().str.contains('PAID')][col_amt].sum()
+        
+        # Hitung sisa Not Yet (target sisa 18.99)
+        ny_val = df_base[df_base[col_status].astype(str).str.upper().str.contains('NY|ISSUE DN')][col_amt].sum()
+
         create_compact_donut_card("Total Pay In To Huawei", val_payin_huawei, ny_val, key="kpi_5")
 
 st.markdown("---")
