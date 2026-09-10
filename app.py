@@ -276,14 +276,21 @@ with col4:
         create_compact_donut_card("DN Issued", val_dn_issued, ny_val, key="kpi_4")
 
 with col5:
-    df_c5 = df_filtered.copy()
-    col_status, col_amt = 'Status Reimburse Actual', 'NET AMOUNT'
-    if col_status in df_c5.columns and col_amt in df_c5.columns:
-        status_clean = df_c5[col_status].astype(str).str.upper().str.strip()
-        mask_paid = status_clean == 'PAID'
-        val_payin_huawei = df_c5[mask_paid][col_amt].sum()
-        mask_ny = status_clean.isin(['DN ISSUED', 'NY ISSUE DN'])
-        ny_val = df_c5[mask_ny][col_amt].sum()
+df_c5 = df_filtered.copy()
+if 'Status Reimburse Actual' in df_c5.columns and 'NET AMOUNT' in df_c5.columns:
+    status_clean = df_c5['Status Reimburse Actual'].astype(str).str.upper().str.strip()
+    
+    # Menggunakan logika filter yang sama persis dengan DN Issued
+    m_done = status_clean.isin(['PAID', 'DN ISSUED'])
+    
+    # Nilai Pay In (yang PAID)
+    m_paid = status_clean == 'PAID'
+    val_payin_huawei = df_c5[m_paid & m_done]['NET AMOUNT'].sum()
+    
+    # Nilai Not Yet (sisa dari total m_done)
+    ny_val = df_c5[m_done & ~m_paid]['NET AMOUNT'].sum()
+    
+    with cols_kpi[4]:
         create_compact_donut_card("Total Pay In To Huawei", val_payin_huawei, ny_val, key="kpi_5")
 
 st.markdown("---")
