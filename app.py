@@ -344,19 +344,14 @@ with col4:
 with col5:
   df_c5 = df_filtered.copy()
   col_status = 'Status Reimburse Actual'
-  col_net = 'NET AMOUNT'
   col_paid = 'Amount Paid'
 
-  if (
-      col_status in df_c5.columns
-      and col_net in df_c5.columns
-      and col_paid in df_c5.columns
-  ):
+  if col_status in df_c5.columns and col_paid in df_c5.columns:
     status_clean = df_c5[col_status].astype(str).str.upper().str.strip()
 
-    # 1. Total Utama: Sum dari 'NET AMOUNT' dengan filter status 'PAID' dan 'DN ISSUED'
+    # 1. Total Utama: Sum dari 'Amount Paid' dengan filter status 'PAID' dan 'DN ISSUED'
     mask_total = status_clean.isin(['PAID', 'DN ISSUED'])
-    val_payin_huawei = df_c5[mask_total][col_net].sum()
+    val_payin_huawei = df_c5[mask_total][col_paid].sum()
 
     # 2. Status Done (Hijau): Sum dari 'Amount Paid' khusus untuk baris berstatus 'PAID'
     mask_paid = status_clean == 'PAID'
@@ -366,16 +361,15 @@ with col5:
     mask_ny = status_clean == 'NY ISSUE DN'
     ny_val = df_c5[mask_ny][col_paid].sum()
 
-    # Membuat kartu donut chart dengan total utama dan rincian komponennya
+    # Membuat kartu donut chart tanpa menggunakan NET AMOUNT
     create_compact_donut_card(
         'Total Pay In To Huawei', val_payin_huawei, val_done, ny_val, key='kpi_5'
     )
   else:
     st.error(
-        'Kolom yang dibutuhkan (Status Reimburse Actual, NET AMOUNT, Amount'
-        ' Paid) tidak ditemukan di data!'
+        f'Kolom yang dibutuhkan ({col_status} atau {col_paid}) tidak ditemukan'
+        ' di data!'
     )
-
 st.markdown("---")
 
 # ==========================================
