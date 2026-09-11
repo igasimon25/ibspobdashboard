@@ -366,20 +366,16 @@ with col5:
     # 3. Nilai NY / Merah (Rp 23.33M): Sum dari keseluruhan kolom 'GAP'
     ny_val = df_c5[col_gap].sum()
 
-    # Menampilkan kartu donut chart dengan menyertakan ketiga komponen nilai secara tepat
+    # Menggunakan parameter posisi standar tanpa keyword agar tidak terjadi TypeError
     create_compact_donut_card(
-        title='Total Pay In To Huawei',
-        main_val=val_payin_huawei,
-        done_val=val_done,
-        ny_val=ny_val,
-        key='kpi_5',
+        'Total Pay In To Huawei', val_done, ny_val, key='kpi_5'
     )
   else:
     st.error(
         'Kolom yang dibutuhkan (Status Reimburse Actual, NET AMOUNT, Amount'
         ' Paid, GAP) tidak ditemukan di data!'
     )
-    
+
 st.markdown("---")
 
 # ==========================================
