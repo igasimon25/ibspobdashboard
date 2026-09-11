@@ -354,21 +354,26 @@ with col5:
   ):
     status_clean = df_c5[col_status].astype(str).str.upper().str.strip()
 
+    # Pastikan kolom bertipe numerik dan bersihkan jika ada format teks/NaN
+    df_c5[col_paid] = pd.to_numeric(df_c5[col_paid], errors='coerce').fillna(0.0)
+    df_c5[col_gap_paid] = pd.to_numeric(
+        df_c5[col_gap_paid], errors='coerce'
+    ).fillna(0.0)
+
     # 1. Warna Hijau (Done): Sum dari 'Amount Paid' & 'GAP PAID' khusus status 'PAID'
     mask_paid = status_clean == 'PAID'
     val_done = (
-        df_c5[mask_paid][col_paid].sum()
-        + df_c5[mask_paid][col_gap_paid].sum()
+        df_c5.loc[mask_paid, col_paid].sum()
+        + df_c5.loc[mask_paid, col_gap_paid].sum()
     )
 
     # 2. Warna Merah (NY): Sum dari 'Amount Paid' & 'GAP PAID' khusus status 'DN ISSUED'
     mask_ny = status_clean == 'DN ISSUED'
     ny_val = (
-        df_c5[mask_ny][col_paid].sum() + df_c5[mask_ny][col_gap_paid].sum()
+        df_c5.loc[mask_ny, col_paid].sum()
+        + df_c5.loc[mask_ny, col_gap_paid].sum()
     )
 
-    # Fungsi create_compact_donut_card akan menjumlahkan val_done dan ny_val
-    # secara otomatis untuk menampilkan Total Pay In To Huawei di bagian atas.
     create_compact_donut_card(
         'Total Pay In To Huawei', val_done, ny_val, key='kpi_5'
     )
