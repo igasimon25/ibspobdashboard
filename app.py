@@ -342,7 +342,7 @@ with col4:
 
 with col5:
   df_c5 = df_filtered.copy()
-  col_status, col_amt = 'Status Reimburse Actual', 'NET AMOUNT'
+  col_status, col_amt = 'Status Reimburse Actual', 'Amount Paid'
 
   if col_status in df_c5.columns and col_amt in df_c5.columns:
     status_clean = df_c5[col_status].astype(str).str.upper().str.strip()
@@ -353,7 +353,7 @@ with col5:
 
     # 2. Hitung total aktual untuk status selain PAID atau yang berstatus DN ISSUED / NY (Merah)
     # Sesuaikan kriteria 'Not Yet' dengan kondisi data asli Anda di spreadsheet
-    mask_not_yet = status_clean.isin(['DN ISSUED', '0', 'NONE', 'NAN']) | (
+    mask_not_yet = status_clean.isin(['DN ISSUED') | (
         status_clean == ''
     )
     ny_val = df_c5[mask_not_yet][col_amt].sum()
