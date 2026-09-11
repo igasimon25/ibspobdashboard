@@ -355,11 +355,11 @@ with col5:
     mask_paid = status_clean == 'PAID'
     val_done = df_c5[mask_paid][col_amt].sum()
 
-    # 3. Nilai Merah (Not Yet): Sisa dari total utama dikurangi nilai Done (atau dari status DN ISSUED)
+    # 3. Nilai Merah (Not Yet): Sum dari 'Amount Paid' khusus status 'DN ISSUED'
     mask_ny = status_clean == 'DN ISSUED'
     ny_val = df_c5[mask_ny][col_amt].sum()
 
-    # Membuat kartu donut chart dengan 4 argumen: (Title, Total Utama, Nilai Done, Nilai NY)
+    # Memastikan val_payin_huawei dikirim sebagai total utama, diikuti rincian done dan ny
     create_compact_donut_card(
         'Total Pay In To Huawei', val_payin_huawei, val_done, ny_val, key='kpi_5'
     )
