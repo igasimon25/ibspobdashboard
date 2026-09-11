@@ -343,37 +343,31 @@ with col4:
 with col5:
   df_c5 = df_filtered.copy()
   col_status = 'Status Reimburse Actual'
-  col_net = 'NET AMOUNT'
   col_paid = 'Amount Paid'
   col_gap = 'GAP'
 
   if (
       col_status in df_c5.columns
-      and col_net in df_c5.columns
       and col_paid in df_c5.columns
       and col_gap in df_c5.columns
   ):
     status_clean = df_c5[col_status].astype(str).str.upper().str.strip()
 
-    # 1. Total keseluruhan chart mengambil nilai dari 'NET AMOUNT' untuk baris berstatus 'PAID' dan 'DN ISSUED'
-    mask_total_filter = status_clean.isin(['PAID', 'DN ISSUED'])
-
-    # 2. Nilai DONE (Hijau) dijumlahkan dari kolom 'Amount Paid' khusus untuk status 'PAID'
+    # 1. Status DONE (Hijau): Total keseluruhan dari kolom 'Amount Paid'
     mask_done = status_clean == 'PAID'
-    val_payin_huawei = df_c5[mask_done][col_paid].sum()
+    val_payin_huawei = df_c5[col_paid].sum()
 
-    # 3. Nilai NY (Merah) dijumlahkan dari kolom 'GAP' khusus untuk status 'DN ISSUED'
-    mask_ny = status_clean == 'DN ISSUED'
-    ny_val = df_c5[mask_ny][col_gap].sum()
+    # 2. Status NY (Merah): Total keseluruhan dari kolom 'GAP'
+    ny_val = df_c5[col_gap].sum()
 
-    # Membuat kartu donut chart
+    # Membuat kartu donut chart (total utama otomatis menjumlahkan Done + NY)
     create_compact_donut_card(
         'Total Pay In To Huawei', val_payin_huawei, ny_val, key='kpi_5'
     )
   else:
     st.error(
-        'Salah satu kolom yang dibutuhkan (Status Reimburse Actual, NET AMOUNT,'
-        ' Amount Paid, GAP) tidak ditemukan di data!'
+        'Kolom yang dibutuhkan (Status Reimburse Actual, Amount Paid, GAP)'
+        ' tidak ditemukan di data!'
     )
 st.markdown("---")
 
