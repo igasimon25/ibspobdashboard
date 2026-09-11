@@ -353,11 +353,11 @@ with col5:
   ):
     status_clean = df_c5[col_status].astype(str).str.upper().str.strip()
 
-    # 1. Bagian Done (hijau): Status 'PAID', nilai diambil dari kolom 'Amount Paid'
+    # 1. Bagian Done (Hijau): Status 'PAID', nilai dijumlahkan dari kolom 'Amount Paid'
     mask_paid = status_clean == 'PAID'
     val_payin_huawei = df_c5[mask_paid][col_done_target].sum()
 
-    # 2. Bagian Not Yet / NY (merah): Status 'PAID' (atau sesuai ketentuan NY Paid), nilai diambil dari kolom 'GAP'
+    # 2. Bagian Not Yet / NY (Merah): Status 'PAID', nilai dijumlahkan dari kolom 'GAP'
     mask_ny = status_clean == 'PAID'
     ny_val = df_c5[mask_ny][col_ny_target].sum()
 
