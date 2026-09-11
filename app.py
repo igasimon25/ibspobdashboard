@@ -355,17 +355,19 @@ with col5:
   ):
     status_clean = df_c5[col_status].astype(str).str.upper().str.strip()
 
-    # 1. Total nilai utama: Ambil dari kolom 'NET AMOUNT' khusus baris dengan status 'PAID' dan 'DN ISSUED'
+    # 1. Total nilai utama: sum dari 'NET AMOUNT' untuk baris berstatus 'PAID' dan 'DN ISSUED'
     mask_total = status_clean.isin(['PAID', 'DN ISSUED'])
     val_payin_huawei = df_c5[mask_total][col_net].sum()
 
-    # 2. Nilai Done (Hijau): Ambil total dari keseluruhan kolom 'Amount Paid'
-    val_done = df_c5[col_paid].sum()
+    # 2. Nilai Done (Hijau): sum dari kolom 'Amount Paid' khusus untuk baris berstatus 'PAID'
+    mask_paid = status_clean == 'PAID'
+    val_done = df_c5[mask_paid][col_paid].sum()
 
-    # 3. Nilai NY (Merah): Ambil total dari keseluruhan kolom 'GAP'
-    ny_val = df_c5[col_gap].sum()
+    # 3. Nilai NY (Merah): sum dari kolom 'GAP' khusus untuk baris berstatus 'DN ISSUED' (atau filter yang sesuai)
+    mask_dn = status_clean == 'DN ISSUED'
+    ny_val = df_c5[mask_dn][col_gap].sum()
 
-    # Membuat kartu donut chart
+    # Memasukkan argumen dengan urutan: (Title, Done_Value, NY_Value)
     create_compact_donut_card(
         'Total Pay In To Huawei', val_done, ny_val, key='kpi_5'
     )
