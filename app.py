@@ -345,28 +345,39 @@ with col5:
   df_c5 = df_filtered.copy()
   col_status = 'Status Reimburse Actual'
   col_paid = 'Amount Paid'
+  col_gap_paid = 'GAP PAID'
 
-  if col_status in df_c5.columns and col_paid in df_c5.columns:
+  if (
+      col_status in df_c5.columns
+      and col_paid in df_c5.columns
+      and col_gap_paid in df_c5.columns
+  ):
     status_clean = df_c5[col_status].astype(str).str.upper().str.strip()
 
-    # 1. Warna Hijau (Done): Sum dari 'Amount Paid' khusus status 'PAID'
+    # 1. Warna Hijau (Done): Sum dari 'Amount Paid' & 'GAP PAID' khusus status 'PAID'
     mask_paid = status_clean == 'PAID'
-    val_done = df_c5[mask_paid][col_paid].sum()
+    val_done = (
+        df_c5[mask_paid][col_paid].sum()
+        + df_c5[mask_paid][col_gap_paid].sum()
+    )
 
-    # 2. Warna Merah (NY): Sum dari 'Amount Paid' khusus status 'DN ISSUED'
+    # 2. Warna Merah (NY): Sum dari 'Amount Paid' & 'GAP PAID' khusus status 'DN ISSUED'
     mask_ny = status_clean == 'DN ISSUED'
-    ny_val = df_c5[mask_ny][col_paid].sum()
+    ny_val = (
+        df_c5[mask_ny][col_paid].sum() + df_c5[mask_ny][col_gap_paid].sum()
+    )
 
-    # Fungsi create_compact_donut_card secara otomatis menjumlahkan Done dan NY
-    # sebagai total utama di atas chart. Pastikan urutan memasukkan variabel benar:
+    # Fungsi create_compact_donut_card akan menjumlahkan val_done dan ny_val
+    # secara otomatis untuk menampilkan Total Pay In To Huawei di bagian atas.
     create_compact_donut_card(
         'Total Pay In To Huawei', val_done, ny_val, key='kpi_5'
     )
   else:
     st.error(
-        f'Kolom yang dibutuhkan ({col_status} atau {col_paid}) tidak ditemukan'
-        ' di data!'
+        'Kolom yang dibutuhkan (Status Reimburse Actual, Amount Paid, GAP'
+        ' PAID) tidak ditemukan di data!'
     )
+
 st.markdown("---")
 
 # ==========================================
