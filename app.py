@@ -345,7 +345,7 @@ with col5:
   df_c5 = df_filtered.copy()
   col_status = 'Status Reimburse Actual'
   col_paid = 'Amount Paid'
-  col_gap_paid = 'GAP PAID'
+  col_gap_paid = 'Gap Amount Paid'
 
   if (
       col_status in df_c5.columns
@@ -360,14 +360,14 @@ with col5:
         df_c5[col_gap_paid], errors='coerce'
     ).fillna(0.0)
 
-    # 1. Warna Hijau (PAID): Sum 'Amount Paid' & 'GAP PAID' khusus baris berstatus 'PAID'
+    # 1. Warna Hijau (PAID): Sum 'Amount Paid' & 'Gap Amount Paid' khusus baris berstatus 'PAID'
     mask_paid = status_clean == 'PAID'
     val_done = (
         df_c5.loc[mask_paid, col_paid].sum()
         + df_c5.loc[mask_paid, col_gap_paid].sum()
     )
 
-    # 2. Warna Merah (DN ISSUED): Sum 'Amount Paid' & 'GAP PAID' khusus baris berstatus 'DN ISSUED'
+    # 2. Warna Merah (DN ISSUED): Sum 'Amount Paid' & 'Gap Amount Paid' khusus baris berstatus 'DN ISSUED'
     mask_ny = status_clean == 'DN ISSUED'
     ny_val = (
         df_c5.loc[mask_ny, col_paid].sum()
@@ -382,8 +382,8 @@ with col5:
     )
   else:
     st.error(
-        'Kolom yang dibutuhkan (Status Reimburse Actual, Amount Paid, GAP'
-        ' PAID) tidak ditemukan di data!'
+        'Kolom yang dibutuhkan (Status Reimburse Actual, Amount Paid, Gap Amount Paid'
+    ' PAID) tidak ditemukan di data!'
     )
 
 st.markdown("---")
