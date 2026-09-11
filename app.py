@@ -347,19 +347,18 @@ with col5:
   if col_status in df_c5.columns and col_amt in df_c5.columns:
     status_clean = df_c5[col_status].astype(str).str.upper().str.strip()
 
-    # 1. Total Utama: Sum dari 'Amount Paid' dengan filter status 'PAID' dan 'DN ISSUED'
+    # 1. Total Utama: Filter baris 'PAID' dan 'DN ISSUED' dari data yang sudah terfilter
     mask_total = status_clean.isin(['PAID', 'DN ISSUED'])
     val_payin_huawei = df_c5[mask_total][col_amt].sum()
 
-    # 2. Nilai Hijau (Done): Sum dari 'Amount Paid' khusus status 'PAID'
+    # 2. Nilai Hijau (Done): Filter khusus baris 'PAID'
     mask_paid = status_clean == 'PAID'
     val_done = df_c5[mask_paid][col_amt].sum()
 
-    # 3. Nilai Merah (Not Yet): Sum dari 'Amount Paid' khusus status 'DN ISSUED'
+    # 3. Nilai Merah (NY): Filter khusus baris 'DN ISSUED'
     mask_ny = status_clean == 'DN ISSUED'
     ny_val = df_c5[mask_ny][col_amt].sum()
 
-    # Memastikan val_payin_huawei dikirim sebagai total utama, diikuti rincian done dan ny
     create_compact_donut_card(
         'Total Pay In To Huawei', val_payin_huawei, val_done, ny_val, key='kpi_5'
     )
