@@ -349,21 +349,18 @@ with col5:
   if col_status in df_c5.columns and col_paid in df_c5.columns:
     status_clean = df_c5[col_status].astype(str).str.upper().str.strip()
 
-    # 1. Total Utama (Rp 88.48M): Sum dari 'Amount Paid' untuk status 'PAID' dan 'DN ISSUED'
-    mask_total = status_clean.isin(['PAID', 'DN ISSUED'])
-    val_payin_huawei = df_c5[mask_total][col_paid].sum()
-
-    # 2. Nilai Hijau (Done): Sum dari 'Amount Paid' khusus status 'PAID' (71.10M)
+    # 1. Warna Hijau (Done): Sum dari 'Amount Paid' khusus status 'PAID'
     mask_paid = status_clean == 'PAID'
     val_done = df_c5[mask_paid][col_paid].sum()
 
-    # 3. Nilai Merah (NY): Sisa dari Total Utama dikurangi nilai Done, atau dari status 'DN ISSUED'
+    # 2. Warna Merah (NY): Sum dari 'Amount Paid' khusus status 'DN ISSUED'
     mask_ny = status_clean == 'DN ISSUED'
     ny_val = df_c5[mask_ny][col_paid].sum()
 
-    # Menampilkan kartu donut chart dengan total utama yang benar (88.48M)
+    # Fungsi create_compact_donut_card secara otomatis menjumlahkan Done dan NY
+    # sebagai total utama di atas chart. Pastikan urutan memasukkan variabel benar:
     create_compact_donut_card(
-        'Total Pay In To Huawei', val_payin_huawei, val_done, ny_val, key='kpi_5'
+        'Total Pay In To Huawei', val_done, ny_val, key='kpi_5'
     )
   else:
     st.error(
