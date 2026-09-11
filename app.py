@@ -343,65 +343,40 @@ with col4:
 
 with col5:
   df_c5 = df_filtered.copy()
-
-  # 1. Deteksi nama kolom secara fleksibel untuk menghindari error penamaan
-  col_status = next(
-      (c for c in df_c5.columns if 'STATUS REIMBURSE ACTUAL' in c.upper()),
-      'Status Reimburse Actual',
-  )
-  col_paid = next(
-      (
-          c
-          for c in df_c5.columns
-          if 'AMOUNT PAID' in c.upper() and 'GAP' not in c.upper()
-      ),
-      'Amount Paid',
-  )
-  # Cari kolom tambahan jika ada (misal GAP PAID / GAP Amount), jika tidak ada bernilai None
-  col_gap_paid = next(
-      (
-          c
-          for c in df_c5.columns
-          if ('GAP' in c.upper() and 'PAID' in c.upper())
-          or c.upper() == 'GAP PAID'
-      ),
-      None,
-  )
+  col_status = 'Status Reimburse Actual'
+  col_paid = 'Amount Paid'
+  col_gap_paid = 'GAP PAID'  # Ganti dengan nama kolom kedua jika berbeda
 
   if col_status in df_c5.columns and col_paid in df_c5.columns:
-    status_clean = df_c5[col_status].astype(str).str.upper().str.strip()
-
-    # Bersihkan data numerik utama
+    # Membersihkan dan memastikan kedua kolom bernilai numerik
     df_c5[col_paid] = pd.to_numeric(df_c5[col_paid], errors='coerce').fillna(0.0)
 
-    # Jika kolom gap paid ada, bersihkan juga. Jika tidak ada, buat seri angka 0
-    if col_gap_paid and col_gap_paid in df_c5.columns:
+    if col_gap_paid in df_c5.columns:
       df_c5[col_gap_paid] = pd.to_numeric(
           df_c5[col_gap_paid], errors='coerce'
       ).fillna(0.0)
-      sum_paid = df_c5[col_paid] + df_c5[col_gap_paid]
+      # Menjumlahkan 2 kolom berbeda per baris
+      combined_amount = df_c5[col_paid] + df_c5[col_gap_paid]
     else:
-      sum_paid = df_c5[col_paid]
+      combined_amount = df_c5[col_paid]
 
-    # 2. Filter status PAID (Hijau) - menggunakan .str.contains untuk kebal spasi/karakter tersembunyi
-    mask_paid = status_clean.eq('PAID') | status_clean.str.contains(
-        '^PAID$', regex=True, na=False
-    )
-    val_done = sum_paid[mask_paid].sum()
+    status_clean = df_c5[col_status].astype(str).str.upper().str.strip()
 
-    # 3. Filter status DN ISSUED (Merah / Not Yet Paid)
-    mask_ny = status_clean.eq('DN ISSUED') | status_clean.str.contains(
-        'DN.*ISSUED', regex=True, na=False
-    )
-    ny_val = sum_paid[mask_ny].sum()
+    # 1. Warna Hijau (Done): Filter status 'PAID' dari hasil penjumlahan
+    mask_paid = status_clean == 'PAID'
+    val_done = combined_amount[mask_paid].sum()
 
-    # Render Donut Card
+    # 2. Warna Merah (NY): Filter status 'DN ISSUED' dari hasil penjumlahan
+    mask_ny = status_clean == 'DN ISSUED'
+    ny_val = combined_amount[mask_ny].sum()
+
+    # Menampilkan donut card (Total keseluruhan otomatis dari val_done + ny_val)
     create_compact_donut_card(
         'Total Pay In To Huawei', val_done, ny_val, key='kpi_5'
     )
   else:
     st.error(
-        f'Kolom utama tidak ditemukan! Terdeteksi -> Status: {col_status in df_c5.columns}, Paid: {col_paid in df_c5.columns}'
+        f'Kolom utama ({col_status} atau {col_paid}) tidak ditemukan di data!'
     )
 
 st.markdown("---")
