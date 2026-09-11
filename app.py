@@ -132,13 +132,7 @@ except Exception as e:
   st.stop()
 
 df_filtered = df_raw.copy()
-# Tambahkan ini sementara di bawah pemanggilan load_data(GSHEET_URL) untuk inspect data
-st.write("Kolom Status yang tersedia:", df_raw.columns.tolist())
-if 'Status Reimburse Actual' in df_raw.columns:
-  st.write(
-      'Nilai unik Status Reimburse Actual:',
-      df_raw['Status Reimburse Actual'].unique(),
-  )
+
 # ==========================================
 # HELPER: URUTKAN LABEL BULAN SECARA KRONOLOGIS
 # ==========================================
