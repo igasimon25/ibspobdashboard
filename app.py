@@ -343,47 +343,65 @@ with col4:
 
 with col5:
   df_c5 = df_filtered.copy()
-  col_status = 'Status Reimburse Actual'
-  col_paid = 'Amount Paid'
-  col_gap_paid = 'Gap Amount Paid'
 
-  if (
-      col_status in df_c5.columns
-      and col_paid in df_c5.columns
-      and col_gap_paid in df_c5.columns
-  ):
+  # 1. Deteksi nama kolom secara fleksibel untuk menghindari error penamaan
+  col_status = next(
+      (c for c in df_c5.columns if 'STATUS REIMBURSE ACTUAL' in c.upper()),
+      'Status Reimburse Actual',
+  )
+  col_paid = next(
+      (
+          c
+          for c in df_c5.columns
+          if 'AMOUNT PAID' in c.upper() and 'GAP' not in c.upper()
+      ),
+      'Amount Paid',
+  )
+  # Cari kolom tambahan jika ada (misal GAP PAID / GAP Amount), jika tidak ada bernilai None
+  col_gap_paid = next(
+      (
+          c
+          for c in df_c5.columns
+          if ('GAP' in c.upper() and 'PAID' in c.upper())
+          or c.upper() == 'GAP PAID'
+      ),
+      None,
+  )
+
+  if col_status in df_c5.columns and col_paid in df_c5.columns:
     status_clean = df_c5[col_status].astype(str).str.upper().str.strip()
 
-    # Pastikan data numerik bersih
+    # Bersihkan data numerik utama
     df_c5[col_paid] = pd.to_numeric(df_c5[col_paid], errors='coerce').fillna(0.0)
-    df_c5[col_gap_paid] = pd.to_numeric(
-        df_c5[col_gap_paid], errors='coerce'
-    ).fillna(0.0)
 
-    # 1. Warna Hijau (PAID): Sum 'Amount Paid' & 'Gap Amount Paid' khusus baris berstatus 'PAID'
-    mask_paid = status_clean == 'PAID'
-    val_done = (
-        df_c5.loc[mask_paid, col_paid].sum()
-        + df_c5.loc[mask_paid, col_gap_paid].sum()
+    # Jika kolom gap paid ada, bersihkan juga. Jika tidak ada, buat seri angka 0
+    if col_gap_paid and col_gap_paid in df_c5.columns:
+      df_c5[col_gap_paid] = pd.to_numeric(
+          df_c5[col_gap_paid], errors='coerce'
+      ).fillna(0.0)
+      sum_paid = df_c5[col_paid] + df_c5[col_gap_paid]
+    else:
+      sum_paid = df_c5[col_paid]
+
+    # 2. Filter status PAID (Hijau) - menggunakan .str.contains untuk kebal spasi/karakter tersembunyi
+    mask_paid = status_clean.eq('PAID') | status_clean.str.contains(
+        '^PAID$', regex=True, na=False
     )
+    val_done = sum_paid[mask_paid].sum()
 
-    # 2. Warna Merah (DN ISSUED): Sum 'Amount Paid' & 'Gap Amount Paid' khusus baris berstatus 'DN ISSUED'
-    mask_ny = status_clean == 'DN ISSUED'
-    ny_val = (
-        df_c5.loc[mask_ny, col_paid].sum()
-        + df_c5.loc[mask_ny, col_gap_paid].sum()
+    # 3. Filter status DN ISSUED (Merah / Not Yet Paid)
+    mask_ny = status_clean.eq('DN ISSUED') | status_clean.str.contains(
+        'DN.*ISSUED', regex=True, na=False
     )
+    ny_val = sum_paid[mask_ny].sum()
 
-    # Kirim parameter ke donut card
-    # Argumen pertama untuk nilai hijau (val_done) dan argumen kedua untuk nilai merah (ny_val)
-    # Fungsi donut card akan otomatis menjumlahkan keduanya untuk menampilkan total 88.48M di atas.
+    # Render Donut Card
     create_compact_donut_card(
         'Total Pay In To Huawei', val_done, ny_val, key='kpi_5'
     )
   else:
     st.error(
-        'Kolom yang dibutuhkan (Status Reimburse Actual, Amount Paid, Gap Amount Paid'
-    ' PAID) tidak ditemukan di data!'
+        f'Kolom utama tidak ditemukan! Terdeteksi -> Status: {col_status in df_c5.columns}, Paid: {col_paid in df_c5.columns}'
     )
 
 st.markdown("---")
