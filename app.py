@@ -343,8 +343,8 @@ with col4:
 with col5:
   df_c5 = df_filtered.copy()
   col_status = 'Status Reimburse Actual'
-  col_paid_target = 'Amount Paid'  # Kolom acuan untuk nilai DONE
-  col_ny_target = 'NET AMOUNT'  # Kolom acuan untuk sisa NY (DN ISSUED)
+  col_paid_target = 'Amount Paid'  # Diubah ke kolom Amount Paid
+  col_ny_target = 'NET AMOUNT'  # Sisa NY mengambil dari NET AMOUNT
 
   if (
       col_status in df_c5.columns
@@ -353,15 +353,15 @@ with col5:
   ):
     status_clean = df_c5[col_status].astype(str).str.upper().str.strip()
 
-    # 1. Bagian Done (hijau): Ambil dari kolom 'CJ Amount Paid' khusus untuk status 'PAID'
+    # 1. Bagian Done (hijau): Menjumlahkan dari kolom 'Amount Paid' khusus status 'PAID'
     mask_paid = status_clean == 'PAID'
     val_payin_huawei = df_c5[mask_paid][col_paid_target].sum()
 
-    # 2. Bagian Not Yet / NY (merah): Ambil dari kolom 'NET AMOUNT' khusus untuk status 'DN ISSUED'
+    # 2. Bagian Not Yet / NY (merah): Menjumlahkan dari kolom 'NET AMOUNT' khusus status 'DN ISSUED'
     mask_dn_issued = status_clean == 'DN ISSUED'
     ny_val = df_c5[mask_dn_issued][col_ny_target].sum()
 
-    # Buat kartu donut chart dengan nilai real-time yang sudah disesuaikan
+    # Membuat kartu donut chart
     create_compact_donut_card(
         'Total Pay In To Huawei', val_payin_huawei, ny_val, key='kpi_5'
     )
