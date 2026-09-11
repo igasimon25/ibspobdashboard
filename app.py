@@ -342,7 +342,7 @@ with col4:
 
 with col5:
     df_c5 = df_filtered.copy()
-    col_status, col_amt = 'Status Reimburse Actual', 'Amount Paid'
+    col_status, col_amt = 'Status Reimburse Actual', 'NET AMOUNT'
     if col_status in df_c5.columns and col_amt in df_c5.columns:
         status_clean = df_c5[col_status].astype(str).str.upper().str.strip()
         
