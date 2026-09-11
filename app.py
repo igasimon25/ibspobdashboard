@@ -343,7 +343,7 @@ with col4:
 with col5:
   df_c5 = df_filtered.copy()
   col_status = 'Status Reimburse Actual'
-  col_paid_target = 'CJ Amount Paid'  # Kolom acuan untuk nilai DONE
+  col_paid_target = 'Amount Paid'  # Kolom acuan untuk nilai DONE
   col_ny_target = 'NET AMOUNT'  # Kolom acuan untuk sisa NY (DN ISSUED)
 
   if (
