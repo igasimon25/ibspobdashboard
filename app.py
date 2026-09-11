@@ -359,15 +359,16 @@ with col5:
     mask_total = status_clean.isin(['PAID', 'DN ISSUED'])
     val_payin_huawei = df_c5[mask_total][col_net].sum()
 
-    # 2. Nilai Done / Hijau (Rp 71.50M): Total keseluruhan nilai dari kolom 'Amount Paid'
-    val_done = df_c5[col_paid].sum()
+    # 2. Nilai Done / Hijau (Rp 71.50M): Sum dari 'Amount Paid' khusus baris berstatus 'PAID'
+    mask_paid = status_clean == 'PAID'
+    val_done = df_c5[mask_paid][col_paid].sum()
 
-    # 3. Nilai NY / Merah (Rp 23.32M): Total keseluruhan nilai dari kolom 'GAP'
+    # 3. Nilai NY / Merah (Rp 23.33M): Sum dari keseluruhan kolom 'GAP'
     ny_val = df_c5[col_gap].sum()
 
-    # Sesuai gambar: Total utama menggunakan val_payin_huawei, bagian dalam donut menggunakan val_done dan ny_val
+    # Menggunakan parameter posisi standar tanpa keyword agar tidak terjadi TypeError
     create_compact_donut_card(
-        'Total Pay In To Huawei', val_payin_huawei, val_done, ny_val, key='kpi_5'
+        'Total Pay In To Huawei', val_done, ny_val, key='kpi_5'
     )
   else:
     st.error(
