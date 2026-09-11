@@ -340,41 +340,23 @@ with col4:
         ny_val = df_c4[~mask_done][col_amt].sum()
         create_compact_donut_card("DN Issued", val_dn_issued, ny_val, key="kpi_4")
 
+bisakah kamu jelaskan script ini dalam bahasa umum
+
 with col5:
-  df_c5 = df_filtered.copy()
-  col_status = 'Status Reimburse Actual'
-  col_net = 'NET AMOUNT'
-  col_paid = 'Amount Paid'
-  col_gap = 'GAP'
+    df_c5 = df_filtered.copy()
+    col_status, col_amt = 'Status Reimburse Actual', 'NET AMOUNT'
+    if col_status in df_c5.columns and col_amt in df_c5.columns:
+        status_clean = df_c5[col_status].astype(str).str.upper().str.strip()
+        
+        # 1. Bagian Done (hijau) mengambil nilai yang statusnya 'PAID' (target: 69.58)
+        mask_paid = status_clean == 'PAID'
+        val_payin_huawei = df_c5[mask_paid][col_amt].sum()
+        
+        # 2. Bagian Not Yet / NY (merah) mengambil nilai yang statusnya 'DN ISSUED' (target: 18.99)
+        mask_dn_issued = status_clean == 'DN ISSUED'
+        ny_val = df_c5[mask_dn_issued][col_amt].sum()
 
-  if (
-      col_status in df_c5.columns
-      and col_net in df_c5.columns
-      and col_paid in df_c5.columns
-      and col_gap in df_c5.columns
-  ):
-    status_clean = df_c5[col_status].astype(str).str.upper().str.strip()
-
-    # 1. Total Utama (Rp 88.57M): Sum dari 'NET AMOUNT' dengan filter status 'PAID' dan 'DN ISSUED'
-    mask_total = status_clean.isin(['PAID', 'DN ISSUED'])
-    val_payin_huawei = df_c5[mask_total][col_net].sum()
-
-    # 2. Nilai Done / Hijau (Rp 71.50M): Sum dari 'Amount Paid' khusus baris berstatus 'PAID'
-    mask_paid = status_clean == 'PAID'
-    val_done = df_c5[mask_paid][col_paid].sum()
-
-    # 3. Nilai NY / Merah (Rp 23.33M): Sum dari keseluruhan kolom 'GAP'
-    ny_val = df_c5[col_gap].sum()
-
-    # Menggunakan parameter posisi standar tanpa keyword agar tidak terjadi TypeError
-    create_compact_donut_card(
-        'Total Pay In To Huawei', val_done, ny_val, key='kpi_5'
-    )
-  else:
-    st.error(
-        'Kolom yang dibutuhkan (Status Reimburse Actual, NET AMOUNT, Amount'
-        ' Paid, GAP) tidak ditemukan di data!'
-    )
+        create_compact_donut_card("Total Pay In To Huawei", val_payin_huawei, ny_val, key="kpi_5")
 
 st.markdown("---")
 
