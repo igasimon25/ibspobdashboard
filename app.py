@@ -344,37 +344,31 @@ with col4:
 with col5:
   df_c5 = df_filtered.copy()
   col_status = 'Status Reimburse Actual'
-  col_net = 'NET AMOUNT'
   col_paid = 'Amount Paid'
-  col_gap = 'GAP'
 
-  if (
-      col_status in df_c5.columns
-      and col_net in df_c5.columns
-      and col_paid in df_c5.columns
-      and col_gap in df_c5.columns
-  ):
+  if col_status in df_c5.columns and col_paid in df_c5.columns:
     status_clean = df_c5[col_status].astype(str).str.upper().str.strip()
 
-    # 1. Total keseluruhan chart mengambil nilai dari 'NET AMOUNT' untuk baris berstatus 'PAID' dan 'DN ISSUED'
-    mask_total_filter = status_clean.isin(['PAID', 'DN ISSUED'])
+    # 1. Total Pay In To Huawei: Sum dari kolom 'Amount Paid' untuk status 'PAID' dan 'DN ISSUED'
+    mask_total = status_clean.isin(['PAID', 'DN ISSUED'])
+    val_total_payin = df_c5[mask_total][col_paid].sum()
 
-    # 2. Nilai DONE (Hijau) dijumlahkan dari kolom 'Amount Paid' khusus untuk status 'PAID'
+    # 2. Done (Hijau): Sum dari kolom 'Amount Paid' khusus untuk status 'PAID'
     mask_done = status_clean == 'PAID'
-    val_payin_huawei = df_c5[mask_done][col_paid].sum()
+    val_done = df_c5[mask_done][col_paid].sum()
 
-    # 3. Nilai NY (Merah) dijumlahkan dari kolom 'GAP' khusus untuk status 'DN ISSUED'
+    # 3. NY (Merah): Sum dari kolom 'Amount Paid' khusus untuk status 'DN ISSUED'
     mask_ny = status_clean == 'DN ISSUED'
-    ny_val = df_c5[mask_ny][col_gap].sum()
+    val_ny = df_c5[mask_ny][col_paid].sum()
 
-    # Membuat kartu donut chart
+    # Membuat kartu donut chart dengan total utama, nilai done, dan nilai ny
     create_compact_donut_card(
-        'Total Pay In To Huawei', val_payin_huawei, ny_val, key='kpi_5'
+        'Total Pay In To Huawei', val_total_payin, val_done, val_ny, key='kpi_5'
     )
   else:
     st.error(
-        'Salah satu kolom yang dibutuhkan (Status Reimburse Actual, NET AMOUNT,'
-        ' Amount Paid, GAP) tidak ditemukan di data!'
+        f'Kolom yang dibutuhkan ({col_status} atau {col_paid}) tidak ditemukan'
+        ' di data!'
     )
 
 st.markdown("---")
