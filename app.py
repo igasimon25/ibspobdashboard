@@ -24,12 +24,14 @@ st.set_page_config(
 st.title('📊 DASHBOARD POB IBS BUILDING MANAGEMENT')
 st.markdown('---')
 
+
 # ==========================================
 # 2. BACA DATA GOOGLE SHEETS & DATA CLEANING
 # ==========================================
-SHEET_ID = '1g3Y6GjXUgjWFtKxC9ul8i0vZgHvamkDwT7j4-_95NMk'
-# Tambahkan timestamp atau parameter unik jika ingin bypass cache manual via tombol,
-# atau gunakan TTL singkat agar data selalu fresh.
+# PERBAIKAN: Gunakan SHEET_ID yang benar sesuai link Google Sheets Anda
+SHEET_ID = '1hISVxOLz8dfyzpNsW3WVwSZXn8G7W-YU'
+
+# URL Export CSV Google Sheets
 GSHEET_URL = (
     f'https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv'
 )
@@ -62,11 +64,8 @@ def clean_currency_advanced(val):
     return 0.0
 
 
-# SOLUSI UTAMA: TTL diatur agar cache kedaluwarsa cepat,
-# dan ditambahkan tombol "Clear Cache & Reload" di sidebar untuk memaksa sinkronisasi.
 @st.cache_data(ttl=5)
 def load_data(url):
-  # Menggunakan parameter timestamp acak opsional di URL untuk menghindari cache browser/server Google
   df = pd.read_csv(url, low_memory=False)
 
   # 1. Bersihkan Nama Kolom
@@ -92,6 +91,10 @@ def load_data(url):
       mapping[col] = 'Area'
     elif c_upper == 'NEW REGIONAL':
       mapping[col] = 'new regional'
+    elif c_upper == 'AMOUNT PAID':  # Tambahkan mapping untuk Amount Paid
+      mapping[col] = 'Amount Paid'
+    elif c_upper == 'GAP':  # Tambahkan mapping untuk GAP
+      mapping[col] = 'GAP'
 
   df = df.rename(columns=mapping)
   df = df.loc[:, ~df.columns.duplicated(keep='first')].copy()
@@ -100,7 +103,7 @@ def load_data(url):
   if 'Area' in df.columns:
     df['Area'] = df['Area'].astype(str).str.strip().str.title()
 
-  # 4. Parsing Numerik
+  # 4. Parsing Numerik (Pastikan Amount Paid dan GAP masuk daftar)
   numeric_cols = [
       'Invoice Amount',
       'NET AMOUNT',
@@ -108,6 +111,7 @@ def load_data(url):
       'Amount Paid Based on Setoff Data',
       'Amount Actual Paid',
       'Amount Paid',
+      'GAP',
   ]
   for col in numeric_cols:
     if col in df.columns:
@@ -116,7 +120,7 @@ def load_data(url):
   return df
 
 
-# Tombol Refresh Manual di Sidebar untuk Mengatasi Masalah Cache Google Drive/Sheets
+# Tombol Refresh Manual di Sidebar
 if st.sidebar.button('🔄 Refresh / Clear Data Cache'):
   st.cache_data.clear()
   st.success('Cache berhasil dibersihkan, memuat ulang data...')
@@ -124,9 +128,6 @@ if st.sidebar.button('🔄 Refresh / Clear Data Cache'):
 
 try:
   df_raw = load_data(GSHEET_URL)
-
-
-
 except Exception as e:
   st.error(f'❌ Gagal membaca data dari Google Sheets. Detail: {e}')
   st.stop()
