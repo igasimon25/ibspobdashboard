@@ -341,35 +341,11 @@ with col4:
         create_compact_donut_card("DN Issued", val_dn_issued, ny_val, key="kpi_4")
 
 
-with col5:
-  df_c5 = df_filtered.copy()
-  col_status = 'Status Reimburse Actual'
-  col_paid = 'Amount Paid'
+with col5: df_c5 = df_filtered.copy() col_status, col_amt = 'Status Reimburse Actual', 'NET AMOUNT' 
+if col_status in df_c5.columns and col_amt in df_c5.columns: status_clean = df_c5[col_status].astype(str).str.upper().str.strip() 
+mask_paid = status_clean == 'PAID' val_payin_huawei = df_c5[mask_paid][col_amt].sum() 
+mask_ny = status_clean.isin(['DN ISSUED', 'NY ISSUE DN']) ny_val = df_c5[mask_ny][col_amt].sum() create_compact_donut_card("Total Pay In To Huawei", val_payin_huawei, ny_val, key="kpi_5")
 
-  if col_status in df_c5.columns and col_paid in df_c5.columns:
-    status_clean = df_c5[col_status].astype(str).str.upper().str.strip()
-
-    # 1. Total Utama: Sum dari 'Amount Paid' dengan filter status 'PAID' dan 'DN ISSUED'
-    mask_total = status_clean.isin(['PAID', 'DN ISSUED'])
-    val_payin_huawei = df_c5[mask_total][col_paid].sum()
-
-    # 2. Status Done (Hijau): Sum dari 'Amount Paid' khusus untuk baris berstatus 'PAID'
-    mask_paid = status_clean == 'PAID'
-    val_done = df_c5[mask_paid][col_paid].sum()
-
-    # 3. Status NY (Merah): Sum dari 'Amount Paid' khusus untuk baris berstatus 'NY ISSUE DN'
-    mask_ny = status_clean == 'NY ISSUE DN'
-    ny_val = df_c5[mask_ny][col_paid].sum()
-
-    # Membuat kartu donut chart tanpa menggunakan NET AMOUNT
-    create_compact_donut_card(
-        'Total Pay In To Huawei', val_payin_huawei, val_done, ny_val, key='kpi_5'
-    )
-  else:
-    st.error(
-        f'Kolom yang dibutuhkan ({col_status} atau {col_paid}) tidak ditemukan'
-        ' di data!'
-    )
 st.markdown("---")
 
 # ==========================================
