@@ -340,9 +340,28 @@ with col4:
         ny_val = df_c4[~mask_done][col_amt].sum()
         create_compact_donut_card("DN Issued", val_dn_issued, ny_val, key="kpi_4")
 
-with col5: df_c5 = df_filtered.copy() col_status = 'Status Reimburse Actual' col_amt = 'NET AMOUNT' if col_status in df_c5.columns and col_amt in df_c5.columns: df_c5[col_amt] = pd.to_numeric(df_c5[col_amt], errors='coerce').fillna(0) status_clean = df_c5[col_status].astype(str).str.upper().str.strip() mask_relevant = status_clean.isin(['PAID', 'DN ISSUED']) df_relevant = df_c5[mask_relevant] mask_paid = df_relevant[col_status].astype(str).str.upper().str.strip() == 'PAID' val_payin_huawei = df_relevant[mask_paid][col_amt].sum() total_relevant = df_relevant[col_amt].sum() ny_val = total_relevant - val_payin_huawei
-create_compact_donut_card("Total Pay In To Huawei", val_payin_huawei, ny_val) else: st.warning("Kolom Status Reimburse Actual / NET AMOUNT N/A")
+with col5:
+  df_c5 = df_filtered.copy()
+  col_status, col_amt = 'Status Reimburse Actual', 'NET AMOUNT'
 
+  if col_status in df_c5.columns and col_amt in df_c5.columns:
+    status_clean = df_c5[col_status].astype(str).str.upper().str.strip()
+
+    # 1. Hitung total aktual untuk status PAID (Done/Hijau) secara dinamis
+    mask_paid = status_clean == 'PAID'
+    val_payin_huawei = df_c5[mask_paid][col_amt].sum()
+
+    # 2. Hitung total aktual untuk status selain PAID atau yang berstatus DN ISSUED / NY (Merah)
+    # Sesuaikan kriteria 'Not Yet' dengan kondisi data asli Anda di spreadsheet
+    mask_not_yet = status_clean.isin(['DN ISSUED', '0', 'NONE', 'NAN']) | (
+        status_clean == ''
+    )
+    ny_val = df_c5[mask_not_yet][col_amt].sum()
+
+    # Membuat visualisasi dengan angka real-time yang baru
+    create_compact_donut_card(
+        'Total Pay In To Huawei', val_payin_huawei, ny_val, key='kpi_5'
+    )
 st.markdown("---")
 
 # ==========================================
