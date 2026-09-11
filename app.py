@@ -345,40 +345,41 @@ with col5:
   df_c5 = df_filtered.copy()
   col_status = 'Status Reimburse Actual'
   col_paid = 'Amount Paid'
-  col_gap_paid = 'GAP PAID'  # Ganti dengan nama kolom kedua jika berbeda
+  col_gap_paid = 'GAP PAID'
 
-  if col_status in df_c5.columns and col_paid in df_c5.columns:
-    # Membersihkan dan memastikan kedua kolom bernilai numerik
-    df_c5[col_paid] = pd.to_numeric(df_c5[col_paid], errors='coerce').fillna(0.0)
-
-    if col_gap_paid in df_c5.columns:
-      df_c5[col_gap_paid] = pd.to_numeric(
-          df_c5[col_gap_paid], errors='coerce'
-      ).fillna(0.0)
-      # Menjumlahkan 2 kolom berbeda per baris
-      combined_amount = df_c5[col_paid] + df_c5[col_gap_paid]
-    else:
-      combined_amount = df_c5[col_paid]
-
+  if (
+      col_status in df_c5.columns
+      and col_paid in df_c5.columns
+      and col_gap_paid in df_c5.columns
+  ):
     status_clean = df_c5[col_status].astype(str).str.upper().str.strip()
 
-    # 1. Warna Hijau (Done): Filter status 'PAID' dari hasil penjumlahan
+    # Bersihkan data numerik dari format teks/simbol
+    df_c5[col_paid] = pd.to_numeric(df_c5[col_paid], errors='coerce').fillna(0.0)
+    df_c5[col_gap_paid] = pd.to_numeric(
+        df_c5[col_gap_paid], errors='coerce'
+    ).fillna(0.0)
+
+    # Penjumlahan baris per baris: Amount Paid + GAP PAID
+    total_per_row = df_c5[col_paid] + df_c5[col_gap_paid]
+
+    # 1. Warna Hijau (Done): Filter baris status 'PAID'
     mask_paid = status_clean == 'PAID'
-    val_done = combined_amount[mask_paid].sum()
+    val_done = total_per_row[mask_paid].sum()
 
-    # 2. Warna Merah (NY): Filter status 'DN ISSUED' dari hasil penjumlahan
+    # 2. Warna Merah (NY): Filter baris status 'DN ISSUED'
     mask_ny = status_clean == 'DN ISSUED'
-    ny_val = combined_amount[mask_ny].sum()
+    ny_val = total_per_row[mask_ny].sum()
 
-    # Menampilkan donut card (Total keseluruhan otomatis dari val_done + ny_val)
+    # Total keseluruhan akan otomatis menjumlahkan val_done dan ny_val (mencapai ~88.57M)
     create_compact_donut_card(
         'Total Pay In To Huawei', val_done, ny_val, key='kpi_5'
     )
   else:
     st.error(
-        f'Kolom utama ({col_status} atau {col_paid}) tidak ditemukan di data!'
+        'Kolom yang dibutuhkan (Status Reimburse Actual, Amount Paid, GAP'
+        ' PAID) tidak ditemukan di data!'
     )
-
 st.markdown("---")
 
 # ==========================================
