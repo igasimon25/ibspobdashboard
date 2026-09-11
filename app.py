@@ -1,190 +1,252 @@
-import streamlit as st
-import pandas as pd
-import numpy as np
-import plotly.graph_objects as go
-import streamlit.components.v1 as components
+import io
 import re
+import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
+import streamlit as st
+import streamlit.components.v1 as components
+
 @st.cache_data
 def convert_df_to_excel(dataframe):
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        dataframe.to_excel(writer, index=False, sheet_name='Data_GSheet')
-    return output.getvalue()
+  output = io.BytesIO()
+  with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+    dataframe.to_excel(writer, index=False, sheet_name='Data_GSheet')
+  return output.getvalue()
+
+
 # ==========================================
 # 1. KONFIGURASI HALAMAN & HEADER
 # ==========================================
 st.set_page_config(
-    page_title="Dashboard POB IBS Building Management",
-    page_icon="📊",
-    layout="wide"
+    page_title='Dashboard POB IBS Building Management', page_icon='📊', layout='wide'
 )
 
-st.title("📊 DASHBOARD POB IBS BUILDING MANAGEMENT")
-st.markdown("---")
+st.title('📊 DASHBOARD POB IBS BUILDING MANAGEMENT')
+st.markdown('---')
 
 # ==========================================
 # 2. BACA DATA GOOGLE SHEETS & DATA CLEANING
 # ==========================================
-SHEET_ID = "1g3Y6GjXUgjWFtKxC9ul8i0vZgHvamkDwT7j4-_95NMk"
-GSHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
+SHEET_ID = '1g3Y6GjXUgjWFtKxC9ul8i0vZgHvamkDwT7j4-_95NMk'
+# Tambahkan timestamp atau parameter unik jika ingin bypass cache manual via tombol,
+# atau gunakan TTL singkat agar data selalu fresh.
+GSHEET_URL = (
+    f'https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv'
+)
+
 
 def clean_currency_advanced(val):
-    """Mencegah angka berubah jadi NaN/0 akibat format mata uang unik"""
-    if pd.isna(val) or val is None:
-        return 0.0
-    val_str = str(val).strip()
-    if not val_str or val_str.lower() in ['nan', 'null', '-', '#value!', '#n/a']:
-        return 0.0
-    
-    is_negative = False
-    if val_str.startswith('(') and val_str.endswith(')'):
-        is_negative = True
-        val_str = val_str[1:-1]
-        
-    cleaned = re.sub(r'[^0-9.-]', '', val_str)
-    try:
-        num = float(cleaned) if cleaned != '' else 0.0
-        return -num if is_negative else num
-    except ValueError:
-        return 0.0
+  """Mencegah angka berubah jadi NaN/0 akibat format mata uang unik"""
+  if pd.isna(val) or val is None:
+    return 0.0
+  val_str = str(val).strip()
+  if not val_str or val_str.lower() in [
+      'nan',
+      'null',
+      '-',
+      '#value!',
+      '#n/a',
+  ]:
+    return 0.0
 
-@st.cache_data(ttl=10)
-def load_data():
-    df = pd.read_csv(GSHEET_URL, low_memory=False)
-    
-    # 1. Bersihkan Nama Kolom
-    df.columns = [str(col).strip() for col in df.columns]
-    
-    # 2. Standar Mapping Nama Kolom
-    mapping = {}
-    for col in df.columns:
-        c_upper = col.upper().replace('_', ' ').strip()
-        if c_upper == 'NET AMOUNT':
-            mapping[col] = 'NET AMOUNT'
-        elif c_upper == 'INVOICE AMOUNT':
-            mapping[col] = 'Invoice Amount'
-        elif 'STATUS REIMBURSE' in c_upper:
-            mapping[col] = 'Status Reimburse Actual'
-        elif c_upper == 'INVOICE AGENT':
-            mapping[col] = 'Invoice Agent'
-        elif c_upper == 'STATUS':
-            mapping[col] = 'Status'
-        elif c_upper in ['STATUS SAP', 'STATUSSAP', 'STATUS_SAP']:
-            mapping[col] = 'StatusSAP'
-        elif c_upper == 'AREA':
-            mapping[col] = 'Area'
-        elif c_upper == 'NEW REGIONAL':
-            mapping[col] = 'new regional'
+  is_negative = False
+  if val_str.startswith('(') and val_str.endswith(')'):
+    is_negative = True
+    val_str = val_str[1:-1]
 
-    df = df.rename(columns=mapping)
-    df = df.loc[:, ~df.columns.duplicated(keep='first')].copy()
+  cleaned = re.sub(r'[^0-9.-]', '', val_str)
+  try:
+    num = float(cleaned) if cleaned != '' else 0.0
+    return -num if is_negative else num
+  except ValueError:
+    return 0.0
 
-    # 3. Cleaning Kolom Area
-    if 'Area' in df.columns:
-        df['Area'] = df['Area'].astype(str).str.strip().str.title()
 
-    # 4. Parsing Numerik
-    numeric_cols = [
-        'Invoice Amount', 'NET AMOUNT', 'Amount SAP', 
-        'Amount Paid Based on Setoff Data', 'Amount Actual Paid', 
-        'Amount Paid'
-    ]
-    for col in numeric_cols:
-        if col in df.columns:
-            df[col] = df[col].apply(clean_currency_advanced)
+# SOLUSI UTAMA: TTL diatur agar cache kedaluwarsa cepat,
+# dan ditambahkan tombol "Clear Cache & Reload" di sidebar untuk memaksa sinkronisasi.
+@st.cache_data(ttl=5)
+def load_data(url):
+  # Menggunakan parameter timestamp acak opsional di URL untuk menghindari cache browser/server Google
+  df = pd.read_csv(url, low_memory=False)
 
-    return df
+  # 1. Bersihkan Nama Kolom
+  df.columns = [str(col).strip() for col in df.columns]
+
+  # 2. Standar Mapping Nama Kolom
+  mapping = {}
+  for col in df.columns:
+    c_upper = col.upper().replace('_', ' ').strip()
+    if c_upper == 'NET AMOUNT':
+      mapping[col] = 'NET AMOUNT'
+    elif c_upper == 'INVOICE AMOUNT':
+      mapping[col] = 'Invoice Amount'
+    elif 'STATUS REIMBURSE' in c_upper:
+      mapping[col] = 'Status Reimburse Actual'
+    elif c_upper == 'INVOICE AGENT':
+      mapping[col] = 'Invoice Agent'
+    elif c_upper == 'STATUS':
+      mapping[col] = 'Status'
+    elif c_upper in ['STATUS SAP', 'STATUSSAP', 'STATUS_SAP']:
+      mapping[col] = 'StatusSAP'
+    elif c_upper == 'AREA':
+      mapping[col] = 'Area'
+    elif c_upper == 'NEW REGIONAL':
+      mapping[col] = 'new regional'
+
+  df = df.rename(columns=mapping)
+  df = df.loc[:, ~df.columns.duplicated(keep='first')].copy()
+
+  # 3. Cleaning Kolom Area
+  if 'Area' in df.columns:
+    df['Area'] = df['Area'].astype(str).str.strip().str.title()
+
+  # 4. Parsing Numerik
+  numeric_cols = [
+      'Invoice Amount',
+      'NET AMOUNT',
+      'Amount SAP',
+      'Amount Paid Based on Setoff Data',
+      'Amount Actual Paid',
+      'Amount Paid',
+  ]
+  for col in numeric_cols:
+    if col in df.columns:
+      df[col] = df[col].apply(clean_currency_advanced)
+
+  return df
+
+
+# Tombol Refresh Manual di Sidebar untuk Mengatasi Masalah Cache Google Drive/Sheets
+if st.sidebar.button('🔄 Refresh / Clear Data Cache'):
+  st.cache_data.clear()
+  st.success('Cache berhasil dibersihkan, memuat ulang data...')
+  st.rerun()
 
 try:
-    df_raw = load_data()
+  df_raw = load_data(GSHEET_URL)
 except Exception as e:
-    st.error(f"❌ Gagal membaca data dari Google Sheets. Detail: {e}")
-    st.stop()
+  st.error(f'❌ Gagal membaca data dari Google Sheets. Detail: {e}')
+  st.stop()
 
 df_filtered = df_raw.copy()
 
 # ==========================================
 # HELPER: URUTKAN LABEL BULAN SECARA KRONOLOGIS
 # ==========================================
+
+
 def sort_month_labels(values):
-    """Urutkan daftar label bulan (mis. 'Sep-24', 'Oct 2024', dsb) secara
-    kronologis dari yang paling awal ke paling baru. Format yang tidak
-    bisa di-parse tetap disertakan di akhir (urut alfabet) agar data
-    tidak hilang."""
-    unique_vals = []
-    seen = set()
-    for v in values:
-        v_str = str(v).strip()
-        if v_str.lower() in ['nan', 'none', ''] or v_str in seen:
-            continue
-        seen.add(v_str)
-        unique_vals.append(v_str)
+  unique_vals = []
+  seen = set()
+  for v in values:
+    v_str = str(v).strip()
+    if v_str.lower() in ['nan', 'none', ''] or v_str in seen:
+      continue
+    seen.add(v_str)
+    unique_vals.append(v_str)
 
-    date_formats = ['%b-%y', '%b-%Y', '%B-%y', '%B-%Y', '%b %Y', '%B %Y',
-                     '%Y-%m', '%m-%Y', '%m/%Y', '%b/%y', '%b/%Y']
+  date_formats = [
+      '%b-%y',
+      '%b-%Y',
+      '%B-%y',
+      '%B-%Y',
+      '%b %Y',
+      '%B %Y',
+      '%Y-%m',
+      '%m-%Y',
+      '%m/%Y',
+      '%b/%y',
+      '%b/%Y',
+  ]
 
-    def parse_month(v_str):
-        for fmt in date_formats:
-            try:
-                return pd.to_datetime(v_str, format=fmt)
-            except (ValueError, TypeError):
-                continue
-        try:
-            return pd.to_datetime(v_str)
-        except (ValueError, TypeError):
-            return pd.NaT
+  def parse_month(v_str):
+    for fmt in date_formats:
+      try:
+        return pd.to_datetime(v_str, format=fmt)
+      except (ValueError, TypeError):
+        continue
+    try:
+      return pd.to_datetime(v_str)
+    except (ValueError, TypeError):
+      return pd.NaT
 
-    parsed = [(v, parse_month(v)) for v in unique_vals]
-    parsed.sort(key=lambda x: (pd.isna(x[1]), x[1] if not pd.isna(x[1]) else pd.Timestamp.min, x[0]))
-    return [v for v, _ in parsed]
+  parsed = [(v, parse_month(v)) for v in unique_vals]
+  parsed.sort(
+      key=lambda x: (
+          pd.isna(x[1]),
+          x[1] if not pd.isna(x[1]) else pd.Timestamp.min,
+          x[0],
+      )
+  )
+  return [v for v, _ in parsed]
 
 
-def sort_summary_by_month(summary_df, col_m, total_labels=('Grand Total', '(blank)')):
-    """Urutkan baris hasil groupby berdasarkan bulan secara kronologis,
-    dengan baris total (Grand Total/, blank ) tetap di akhir tabel."""
-    if summary_df.empty or col_m not in summary_df.columns:
-        return summary_df
+def sort_summary_by_month(
+    summary_df, col_m, total_labels=('Grand Total', '(blank)')
+):
+  if summary_df.empty or col_m not in summary_df.columns:
+    return summary_df
 
-    mask_total = summary_df[col_m].astype(str).isin(total_labels)
-    df_months = summary_df[~mask_total].copy()
-    df_totals = summary_df[mask_total].copy()
+  mask_total = summary_df[col_m].astype(str).isin(total_labels)
+  df_months = summary_df[~mask_total].copy()
+  df_totals = summary_df[mask_total].copy()
 
-    month_order = sort_month_labels(df_months[col_m])
-    df_months[col_m] = pd.Categorical(df_months[col_m], categories=month_order, ordered=True)
-    df_months = df_months.sort_values(col_m).reset_index(drop=True)
-    df_months[col_m] = df_months[col_m].astype(str)
+  month_order = sort_month_labels(df_months[col_m])
+  df_months[col_m] = pd.Categorical(
+      df_months[col_m], categories=month_order, ordered=True
+  )
+  df_months = df_months.sort_values(col_m).reset_index(drop=True)
+  df_months[col_m] = df_months[col_m].astype(str)
 
-    return pd.concat([df_months, df_totals], ignore_index=True)
+  return pd.concat([df_months, df_totals], ignore_index=True)
+
 
 # ==========================================
 # 3. SIDEBAR CONTROL & GLOBAL FILTERS
 # ==========================================
-st.sidebar.header("🔍 Global Filters")
+st.sidebar.header('🔍 Global Filters')
 
 # Filter Area
 if 'Area' in df_raw.columns:
-    raw_areas = df_raw['Area'].dropna().unique().tolist()
-    clean_areas = sorted([str(x) for x in raw_areas if str(x).lower() not in ['nan', 'none', '']])
-    list_area = ["(All)"] + clean_areas
-    selected_area = st.sidebar.selectbox("Area Filter", options=list_area, index=0)
-    if selected_area != "(All)":
-        df_filtered = df_filtered[df_filtered['Area'] == selected_area]
+  raw_areas = df_raw['Area'].dropna().unique().tolist()
+  clean_areas = sorted(
+      [str(x) for x in raw_areas if str(x).lower() not in ['nan', 'none', '']]
+  )
+  list_area = ['(All)'] + clean_areas
+  selected_area = st.sidebar.selectbox('Area Filter', options=list_area, index=0)
+  if selected_area != '(All)':
+    df_filtered = df_filtered[df_filtered['Area'] == selected_area]
 
 # Filter Payment Month
-col_month = 'Payment Month' if 'Payment Month' in df_filtered.columns else ('Month' if 'Month' in df_filtered.columns else None)
+col_month = (
+    'Payment Month'
+    if 'Payment Month' in df_filtered.columns
+    else ('Month' if 'Month' in df_filtered.columns else None)
+)
 if col_month and col_month in df_filtered.columns:
-    list_month = ["(All Months)"] + sort_month_labels(df_filtered[col_month])
-    selected_month = st.sidebar.selectbox("Payment Month Filter", options=list_month, index=0)
-    if selected_month != "(All Months)":
-        df_filtered = df_filtered[df_filtered[col_month].astype(str) == selected_month]
+  list_month = ['(All Months)'] + sort_month_labels(df_filtered[col_month])
+  selected_month = st.sidebar.selectbox(
+      'Payment Month Filter', options=list_month, index=0
+  )
+  if selected_month != '(All Months)':
+    df_filtered = df_filtered[
+        df_filtered[col_month].astype(str) == selected_month
+    ]
 
 # Filter New Regional
 if 'new regional' in df_filtered.columns:
-    list_reg = ["(All Regionals)"] + [str(x) for x in df_filtered['new regional'].dropna().unique().tolist() if str(x).lower() not in ['nan', 'none', '']]
-    selected_reg = st.sidebar.selectbox("New Regional Filter", options=list_reg, index=0)
-    if selected_reg != "(All Regionals)":
-        df_filtered = df_filtered[df_filtered['new regional'].astype(str) == selected_reg]
-
+  list_reg = ['(All Regionals)'] + [
+      str(x)
+      for x in df_filtered['new regional'].dropna().unique().tolist()
+      if str(x).lower() not in ['nan', 'none', '']
+  ]
+  selected_reg = st.sidebar.selectbox(
+      'New Regional Filter', options=list_reg, index=0
+  )
+  if selected_reg != '(All Regionals)':
+    df_filtered = df_filtered[
+        df_filtered['new regional'].astype(str) == selected_reg
+    ]
 
 # ==========================================
 # FUNGSI HELPER: COMPACT DONUT CHART (KPI)
