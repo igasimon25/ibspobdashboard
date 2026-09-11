@@ -340,7 +340,6 @@ with col4:
         ny_val = df_c4[~mask_done][col_amt].sum()
         create_compact_donut_card("DN Issued", val_dn_issued, ny_val, key="kpi_4")
 
-bisakah kamu jelaskan script ini dalam bahasa umum
 
 with col5:
     df_c5 = df_filtered.copy()
