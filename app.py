@@ -354,26 +354,29 @@ with col5:
   ):
     status_clean = df_c5[col_status].astype(str).str.upper().str.strip()
 
-    # Pastikan kolom bertipe numerik dan bersihkan jika ada format teks/NaN
+    # Pastikan data numerik bersih
     df_c5[col_paid] = pd.to_numeric(df_c5[col_paid], errors='coerce').fillna(0.0)
     df_c5[col_gap_paid] = pd.to_numeric(
         df_c5[col_gap_paid], errors='coerce'
     ).fillna(0.0)
 
-    # 1. Warna Hijau (Done): Sum dari 'Amount Paid' & 'GAP PAID' khusus status 'PAID'
+    # 1. Warna Hijau (PAID): Sum 'Amount Paid' & 'GAP PAID' khusus baris berstatus 'PAID'
     mask_paid = status_clean == 'PAID'
     val_done = (
         df_c5.loc[mask_paid, col_paid].sum()
         + df_c5.loc[mask_paid, col_gap_paid].sum()
     )
 
-    # 2. Warna Merah (NY): Sum dari 'Amount Paid' & 'GAP PAID' khusus status 'DN ISSUED'
+    # 2. Warna Merah (DN ISSUED): Sum 'Amount Paid' & 'GAP PAID' khusus baris berstatus 'DN ISSUED'
     mask_ny = status_clean == 'DN ISSUED'
     ny_val = (
         df_c5.loc[mask_ny, col_paid].sum()
         + df_c5.loc[mask_ny, col_gap_paid].sum()
     )
 
+    # Kirim parameter ke donut card
+    # Argumen pertama untuk nilai hijau (val_done) dan argumen kedua untuk nilai merah (ny_val)
+    # Fungsi donut card akan otomatis menjumlahkan keduanya untuk menampilkan total 88.48M di atas.
     create_compact_donut_card(
         'Total Pay In To Huawei', val_done, ny_val, key='kpi_5'
     )
