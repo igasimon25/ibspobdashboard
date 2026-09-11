@@ -125,6 +125,13 @@ if st.sidebar.button('🔄 Refresh / Clear Data Cache'):
 try:
   df_raw = load_data(GSHEET_URL)
 
+
+
+except Exception as e:
+  st.error(f'❌ Gagal membaca data dari Google Sheets. Detail: {e}')
+  st.stop()
+
+df_filtered = df_raw.copy()
 # Tambahkan ini sementara di bawah pemanggilan load_data(GSHEET_URL) untuk inspect data
 st.write("Kolom Status yang tersedia:", df_raw.columns.tolist())
 if 'Status Reimburse Actual' in df_raw.columns:
@@ -132,13 +139,6 @@ if 'Status Reimburse Actual' in df_raw.columns:
       'Nilai unik Status Reimburse Actual:',
       df_raw['Status Reimburse Actual'].unique(),
   )
-
-except Exception as e:
-  st.error(f'❌ Gagal membaca data dari Google Sheets. Detail: {e}')
-  st.stop()
-
-df_filtered = df_raw.copy()
-
 # ==========================================
 # HELPER: URUTKAN LABEL BULAN SECARA KRONOLOGIS
 # ==========================================
