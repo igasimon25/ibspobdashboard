@@ -343,30 +343,38 @@ with col4:
 
 with col5:
   df_c5 = df_filtered.copy()
-  col_status, col_amt = 'Status Reimburse Actual', 'Amount Paid'
+  col_status = 'Status Reimburse Actual'
+  col_net = 'NET AMOUNT'
+  col_paid = 'Amount Paid'
+  col_gap = 'GAP'
 
-  if col_status in df_c5.columns and col_amt in df_c5.columns:
+  if (
+      col_status in df_c5.columns
+      and col_net in df_c5.columns
+      and col_paid in df_c5.columns
+      and col_gap in df_c5.columns
+  ):
     status_clean = df_c5[col_status].astype(str).str.upper().str.strip()
 
-    # 1. Total Utama: Filter baris 'PAID' dan 'DN ISSUED' dari data yang sudah terfilter
-    mask_total = status_clean.isin(['PAID', 'DN ISSUED'])
-    val_payin_huawei = df_c5[mask_total][col_amt].sum()
+    # 1. Total keseluruhan chart mengambil nilai dari 'NET AMOUNT' untuk baris berstatus 'PAID' dan 'DN ISSUED'
+    mask_total_filter = status_clean.isin(['PAID', 'DN ISSUED'])
 
-    # 2. Nilai Hijau (Done): Filter khusus baris 'PAID'
-    mask_paid = status_clean == 'PAID'
-    val_done = df_c5[mask_paid][col_amt].sum()
+    # 2. Nilai DONE (Hijau) dijumlahkan dari kolom 'Amount Paid' khusus untuk status 'PAID'
+    mask_done = status_clean == 'PAID'
+    val_payin_huawei = df_c5[mask_done][col_paid].sum()
 
-    # 3. Nilai Merah (NY): Filter khusus baris 'DN ISSUED'
+    # 3. Nilai NY (Merah) dijumlahkan dari kolom 'GAP' khusus untuk status 'DN ISSUED'
     mask_ny = status_clean == 'DN ISSUED'
-    ny_val = df_c5[mask_ny][col_amt].sum()
+    ny_val = df_c5[mask_ny][col_gap].sum()
 
+    # Membuat kartu donut chart
     create_compact_donut_card(
-        'Total Pay In To Huawei', val_payin_huawei, val_done, ny_val, key='kpi_5'
+        'Total Pay In To Huawei', val_payin_huawei, ny_val, key='kpi_5'
     )
   else:
     st.error(
-        f'Kolom yang dibutuhkan ({col_status} atau {col_amt}) tidak ditemukan'
-        ' di data!'
+        'Salah satu kolom yang dibutuhkan (Status Reimburse Actual, NET AMOUNT,'
+        ' Amount Paid, GAP) tidak ditemukan di data!'
     )
 
 st.markdown("---")
