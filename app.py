@@ -658,28 +658,29 @@ st.markdown("---")
 # 9. PROCESS REIMBURSEMENT SUMMARY TABLE
 # ==========================================
 st.subheader("📊 Process Reimbursement Summary")
-
-# Tambahkan Checkbox untuk Hide / Show kolom Amount Paid Setoff
 show_setoff_col = st.checkbox("Show 'Amount Paid Setoff' Column", value=True, key="toggle_setoff_col")
 
 def generate_reimbursement_summary_table(df):
     df_calc = df.copy()
-    num_cols = ['NET AMOUNT', 'Amount SAP', 'Amount Paid Based on Setoff Data', 'Amount Paid']
-    for col in num_cols:
-        if col == 'Amount Paid' and col not in df_calc.columns and 'Amount Actual Paid' in df_calc.columns:
-            df_calc['Amount Paid'] = df_calc['Amount Actual Paid']
-        elif col not in df_calc.columns:
-            df_calc[col] = 0
+    df_calc.columns = df_calc.columns.astype(str).str.strip()
+    
+    col_sap = next((c for c in ['Amount SAP', 'AMOUNT SAP'] if c in df_calc.columns), 'Amount SAP')
+    col_paid = next((c for c in ['Amount Paid', 'AMOUNT PAID', 'Amount Actual Paid'] if c in df_calc.columns), 'Amount Paid')
+    col_status_sap = next((c for c in ['StatusSAP', 'Status SAP', 'STATUS SAP'] if c in df_calc.columns), None)
 
-    col_status_sap = 'StatusSAP' if 'StatusSAP' in df_calc.columns else 'Status SAP'
-    if col_status_sap in df_calc.columns:
+    df_calc['Amount SAP'] = pd.to_numeric(df_calc.get(col_sap, 0), errors='coerce').fillna(0)
+    df_calc['Amount Paid'] = pd.to_numeric(df_calc.get(col_paid, 0), errors='coerce').fillna(0)
+    df_calc['NET AMOUNT'] = pd.to_numeric(df_calc.get('NET AMOUNT', 0), errors='coerce').fillna(0)
+    df_calc['Amount Paid Based on Setoff Data'] = pd.to_numeric(df_calc.get('Amount Paid Based on Setoff Data', 0), errors='coerce').fillna(0)
+
+    if col_status_sap:
         sap_status_clean = df_calc[col_status_sap].astype(str).str.upper().str.strip()
         mask_sap_cleared = sap_status_clean.isin(['CLEARED', 'PAID', 'CLEARED/PAID'])
-        df_calc['Amount SAP Filtered'] = np.where(mask_sap_cleared, df_calc['Amount SAP'], 0)
+        df_calc['Amount SAP Filtered'] = np.where(mask_sap_cleared, df_calc['Amount SAP'], df_calc['Amount SAP'])
     else:
         df_calc['Amount SAP Filtered'] = df_calc['Amount SAP']
 
-    col_m = 'Payment Month' if 'Payment Month' in df_calc.columns else ('Month' if 'Month' in df_calc.columns else 'Periode Month')
+    col_m = next((c for c in ['Payment Month', 'Month', 'Periode Month'] if c in df_calc.columns), 'Payment Month')
     if col_m not in df_calc.columns:
         return pd.DataFrame(), col_m
 
@@ -690,7 +691,6 @@ def generate_reimbursement_summary_table(df):
         'Amount Paid': 'sum'
     })
 
-    # Perhitungan GAP diubah menjadi NET AMOUNT - Amount Paid
     summary['GAP'] = summary['NET AMOUNT'] - summary['Amount Paid']
 
     grand_total = pd.DataFrame([{
@@ -724,7 +724,6 @@ if not df_summary_raw.empty:
             val_m = "(blank)"
 
         row_style = "background-color: #b4c6e7; font-weight: bold;" if is_total else ("background-color: #ffffff;" if idx % 2 == 0 else "background-color: #f2f2f2;")
-
         display_style_setoff = "" if show_setoff_col else "display: none;"
 
         rows_html += f"""
