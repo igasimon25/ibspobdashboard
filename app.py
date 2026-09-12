@@ -671,7 +671,7 @@ def generate_reimbursement_summary_table(df):
 
     # 1. Bersihkan & Petakan Kolom Numerik (Deteksi Fleksibel)
     col_paid_target = next((c for c in ['Amount Paid', 'AMOUNT PAID', 'Amount Actual Paid', 'AMOUNT ACTUAL PAID'] if c in df_calc.columns), None)
-    col_sap_target = next((c for c in ['Amount SAP', 'AMOUNT SAP', 'AmountSap'] if c in df_calc.columns), None)
+    col_sap_target = next((c for c in ['AmountSAP', 'AMOUNT SAP', 'Amount Sap'] if c in df_calc.columns), None)
     col_setoff_target = next((c for c in ['Amount Paid Based on Setoff Data', 'AMOUNT PAID BASED ON SETOFF DATA'] if c in df_calc.columns), None)
     col_net_target = next((c for c in ['NET AMOUNT', 'Net Amount', 'net amount'] if c in df_calc.columns), None)
 
@@ -692,10 +692,10 @@ def generate_reimbursement_summary_table(df):
     
     if col_status_sap:
         sap_status_clean = df_calc[col_status_sap].astype(str).str.upper().str.strip()
-        mask_sap_cleared = sap_status_clean.isin(['CLEARED', 'PAID', 'CLEARED/PAID'])
-        df_calc['Amount SAP Filtered'] = np.where(mask_sap_cleared, df_calc['Amount SAP'], 0)
+        mask_sap_cleared = sap_status_clean.isin(['Cleared/Paid'])
+        df_calc['Amount SAP Filtered'] = np.where(mask_sap_cleared, df_calc['AmountSAP'], 0)
     else:
-        df_calc['Amount SAP Filtered'] = df_calc['Amount SAP']
+        df_calc['Amount SAP Filtered'] = df_calc['AmountSAP']
 
     # 3. Identifikasi Kolom Payment Month
     col_m = next((c for c in ['Payment Month', 'Month', 'Periode Month', 'PAYMENT MONTH'] if c in df_calc.columns), 'Payment Month')
