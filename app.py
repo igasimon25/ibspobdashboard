@@ -670,22 +670,22 @@ def generate_reimbursement_summary_table(df):
     df_calc.columns = df_calc.columns.astype(str).str.strip()
 
     # 1. Bersihkan & Petakan Kolom Numerik (Deteksi Fleksibel)
-    col_paid_target = next((c for c in ['Amount Paid', 'AMOUNT PAID', 'Amount Actual Paid', 'AMOUNT ACTUAL PAID'] if c in df_calc.columns), 'Amount Paid')
-    col_sap_target = next((c for c in ['Amount SAP', 'AMOUNT SAP', 'AmountSap'] if c in df_calc.columns), 'Amount SAP')
-    col_setoff_target = next((c for c in ['Amount Paid Based on Setoff Data', 'AMOUNT PAID BASED ON SETOFF DATA'] if c in df_calc.columns), 'Amount Paid Based on Setoff Data')
-    col_net_target = next((c for c in ['NET AMOUNT', 'Net Amount', 'net amount'] if c in df_calc.columns), 'NET AMOUNT')
+    col_paid_target = next((c for c in ['Amount Paid', 'AMOUNT PAID', 'Amount Actual Paid', 'AMOUNT ACTUAL PAID'] if c in df_calc.columns), None)
+    col_sap_target = next((c for c in ['Amount SAP', 'AMOUNT SAP', 'AmountSap'] if c in df_calc.columns), None)
+    col_setoff_target = next((c for c in ['Amount Paid Based on Setoff Data', 'AMOUNT PAID BASED ON SETOFF DATA'] if c in df_calc.columns), None)
+    col_net_target = next((c for c in ['NET AMOUNT', 'Net Amount', 'net amount'] if c in df_calc.columns), None)
 
-    # Mapping ke dataframe lokal perhitungan
-    df_calc['NET AMOUNT'] = pd.to_numeric(df_calc.get(col_net_target, 0), errors='coerce').fillna(0)
-    df_calc['Amount SAP'] = pd.to_numeric(df_calc.get(col_sap_target, 0), errors='coerce').fillna(0)
-    df_calc['Amount Paid Based on Setoff Data'] = pd.to_numeric(df_calc.get(col_setoff_target, 0), errors='coerce').fillna(0)
+    # Mapping ke dataframe lokal perhitungan dengan aman (menggunakan panjang indeks dataframe)
+    df_calc['NET AMOUNT'] = pd.to_numeric(df_calc[col_net_target], errors='coerce').fillna(0) if col_net_target in df_calc.columns else pd.Series(0.0, index=df_calc.index)
+    df_calc['Amount SAP'] = pd.to_numeric(df_calc[col_sap_target], errors='coerce').fillna(0) if col_sap_target in df_calc.columns else pd.Series(0.0, index=df_calc.index)
+    df_calc['Amount Paid Based on Setoff Data'] = pd.to_numeric(df_calc[col_setoff_target], errors='coerce').fillna(0) if col_setoff_target in df_calc.columns else pd.Series(0.0, index=df_calc.index)
     
     if col_paid_target in df_calc.columns:
         df_calc['Amount Paid'] = pd.to_numeric(df_calc[col_paid_target], errors='coerce').fillna(0)
     elif 'Amount Actual Paid' in df_calc.columns:
         df_calc['Amount Paid'] = pd.to_numeric(df_calc['Amount Actual Paid'], errors='coerce').fillna(0)
     else:
-        df_calc['Amount Paid'] = 0
+        df_calc['Amount Paid'] = pd.Series(0.0, index=df_calc.index)
 
     # 2. Filter Khusus Kolom Amount SAP berdasarkan Status SAP ("CLEARED" atau "PAID")
     col_status_sap = next((c for c in ['StatusSAP', 'Status SAP', 'STATUS SAP', 'Status_SAP'] if c in df_calc.columns), None)
