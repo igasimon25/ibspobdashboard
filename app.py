@@ -341,49 +341,48 @@ with col4:
         ny_val = df_c4[~mask_done][col_amt].sum()
         create_compact_donut_card("DN Issued", val_dn_issued, ny_val, key="kpi_4")
 
+# 5. Total Pay In To Huawei
 with col5:
     df_c5 = df_filtered.copy()
     
-    # Normalisasi semua nama kolom di dataframe (buang spasi ujung, jadikan huruf kapital)
+    # Normalisasi nama kolom untuk mengantisipasi perbedaan spasi/kapitalisasi di GitHub
     df_c5.columns = df_c5.columns.astype(str).str.strip()
     
-    # Cari nama kolom secara fleksibel untuk mengantisipasi perbedaan di GitHub
-    col_status_candidates = ['Status Reimburse Actual', 'STATUS REIMBURSE ACTUAL', 'Status Reimburse', 'Status']
-    col_paid_candidates = ['Amount Paid', 'AMOUNT PAID', 'Paid']
-    col_gap_candidates = ['GAP PAID', 'Gap Paid', 'gap paid']
+    col_status = next((c for c in ['Status Reimburse Actual', 'STATUS REIMBURSE ACTUAL'] if c in df_c5.columns), 'Status Reimburse Actual')
+    col_paid = next((c for c in ['Amount Paid', 'AMOUNT PAID'] if c in df_c5.columns), 'Amount Paid')
     
-    col_status = next((c for c in col_status_candidates if c in df_c5.columns), None)
-    col_paid = next((c for c in col_paid_candidates if c in df_c5.columns), None)
-    col_gap_paid = next((c for c in col_gap_candidates if c in df_c5.columns), None)
+    # Deteksi fleksibel antara 'GAP' (seperti di local host) atau 'GAP PAID'
+    col_gap = next((c for c in ['GAP', 'GAP PAID', 'Gap'] if c in df_c5.columns), 'GAP')
 
-    if col_status and col_paid and col_gap_paid:
+    if (
+        col_status in df_c5.columns
+        and col_paid in df_c5.columns
+        and col_gap in df_c5.columns
+    ):
+        # Paksa ubah kolom numerik jadi angka agar aman dari error string/kosong
+        df_c5[col_paid] = pd.to_numeric(df_c5[col_paid], errors='coerce').fillna(0.0)
+        df_c5[col_gap] = pd.to_numeric(df_c5[col_gap], errors='coerce').fillna(0.0)
+
+        # 1. Jumlahkan 2 header (Amount Paid + GAP) langsung per baris persis seperti local host
+        df_c5['Combined_Sum'] = df_c5[col_paid] + df_c5[col_gap]
+
+        # 2. Normalisasi teks status
         status_clean = df_c5[col_status].astype(str).str.upper().str.strip()
 
-        # Bersihkan data numerik dari format teks/simbol
-        df_c5[col_paid] = pd.to_numeric(df_c5[col_paid], errors='coerce').fillna(0.0)
-        df_c5[col_gap_paid] = pd.to_numeric(df_c5[col_gap_paid], errors='coerce').fillna(0.0)
+        # 3. Hitung kondisi PAID (Done)
+        val_payin_huawei = df_c5.loc[
+            status_clean == 'PAID', 'Combined_Sum'
+        ].sum()
 
-        # Penjumlahan baris per baris: Amount Paid + GAP PAID
-        total_per_row = df_c5[col_paid] + df_c5[col_gap_paid]
+        # 4. Hitung kondisi DN ISSUED (Not Yet Paid)
+        ny_val = df_c5.loc[status_clean == 'DN ISSUED', 'Combined_Sum'].sum()
 
-        # 1. Warna Hijau (Done): Filter baris status 'PAID'
-        mask_paid = status_clean == 'PAID'
-        val_done = total_per_row[mask_paid].sum()
-
-        # 2. Warna Merah (NY): Filter baris status 'DN ISSUED'
-        mask_ny = status_clean == 'DN ISSUED'
-        ny_val = total_per_row[mask_ny].sum()
-
-        # Render kartu donut KPI kelima
         create_compact_donut_card(
-            'Total Pay In To Huawei', val_done, ny_val, key='kpi_5'
+            'Total Pay In To Huawei', val_payin_huawei, ny_val, key='kpi_5'
         )
     else:
-        # Tampilkan informasi kolom apa saja yang terbaca untuk memudahkan debugging jika masihbeda
-        available_cols = ", ".join(df_c5.columns[:10]) # Tampilkan 10 kolom pertama
-        st.error(
-            f"Kolom target tidak lengkap! Kolom terbaca di server: [{available_cols}..."
-        )
+        st.warning('Kolom Status Reimburse Actual / Amount Paid / GAP N/A')
+
 st.markdown("---")
 
 # ==========================================
