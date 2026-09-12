@@ -25,7 +25,7 @@ st.markdown("---")
 # ==========================================
 # 2. BACA DATA GOOGLE SHEETS & DATA CLEANING
 # ==========================================
-SHEET_ID = "1g3Y6GjXUgjWFtKxC9ul8i0vZgHvamkDwT7j4-_95NMk"
+SHEET_ID = "1hISVxOLz8dfyzpNsW3WVwSZXn8G7W-YU"
 GSHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
 
 def clean_currency_advanced(val):
