@@ -675,7 +675,7 @@ def generate_reimbursement_summary_table(df):
     col_setoff_target = next((c for c in ['Amount Paid Based on Setoff Data', 'AMOUNT PAID BASED ON SETOFF DATA'] if c in df_calc.columns), None)
     col_net_target = next((c for c in ['NET AMOUNT', 'Net Amount', 'net amount'] if c in df_calc.columns), None)
 
-    # Mapping ke dataframe lokal perhitungan dengan aman (menggunakan panjang indeks dataframe)
+    # Mapping ke dataframe lokal perhitungan dengan aman
     df_calc['NET AMOUNT'] = pd.to_numeric(df_calc[col_net_target], errors='coerce').fillna(0) if col_net_target in df_calc.columns else pd.Series(0.0, index=df_calc.index)
     df_calc['Amount SAP'] = pd.to_numeric(df_calc[col_sap_target], errors='coerce').fillna(0) if col_sap_target in df_calc.columns else pd.Series(0.0, index=df_calc.index)
     df_calc['Amount Paid Based on Setoff Data'] = pd.to_numeric(df_calc[col_setoff_target], errors='coerce').fillna(0) if col_setoff_target in df_calc.columns else pd.Series(0.0, index=df_calc.index)
@@ -687,15 +687,16 @@ def generate_reimbursement_summary_table(df):
     else:
         df_calc['Amount Paid'] = pd.Series(0.0, index=df_calc.index)
 
-    # 2. Filter Khusus Kolom Amount SAP berdasarkan Status SAP ("CLEARED" atau "PAID")
+    # 2. Filter Fleksibel Kolom Amount SAP Berdasarkan Status SAP (Aman untuk GitHub)
     col_status_sap = next((c for c in ['StatusSAP', 'Status SAP', 'STATUS SAP', 'Status_SAP'] if c in df_calc.columns), None)
     
     if col_status_sap:
         sap_status_clean = df_calc[col_status_sap].astype(str).str.upper().str.strip()
-        mask_sap_cleared = sap_status_clean.isin(['Cleared/Paid'])
-        df_calc['Amount SAP Filtered'] = np.where(mask_sap_cleared, df_calc['AmountSAP'], 0)
+        # Mencakup berbagai variasi penulisan status cleared/paid agar tidak kosong di GitHub
+        mask_sap_cleared = sap_status_clean.isin(['CLEARED/PAID', 'CLEARED', 'PAID', 'CLEARED / PAID'])
+        df_calc['Amount SAP Filtered'] = np.where(mask_sap_cleared, df_calc['Amount SAP'], 0)
     else:
-        df_calc['Amount SAP Filtered'] = df_calc['AmountSAP']
+        df_calc['Amount SAP Filtered'] = df_calc['Amount SAP']
 
     # 3. Identifikasi Kolom Payment Month
     col_m = next((c for c in ['Payment Month', 'Month', 'Periode Month', 'PAYMENT MONTH'] if c in df_calc.columns), 'Payment Month')
@@ -843,7 +844,6 @@ if not df_summary_raw.empty:
 
     calc_height = min(750, max(200, (len(df_summary_raw) + 2) * 28))
     components.html(full_html, height=calc_height, scrolling=True)
-
 # ==========================================
 # 10. REIMBURSEMENT SUMMARY TO TSEL & AGENT
 # ==========================================
