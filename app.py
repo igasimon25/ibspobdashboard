@@ -357,7 +357,22 @@ str_dn_issued = f"Rp{val_dn_issued:,.0f}".replace(",", ".") if val_dn_issued > 0
 str_payin_huawei = f"Rp{val_payin_huawei:,.0f}".replace(",", ".") if val_payin_huawei > 0 else "Rp0"
 str_tsel_paid_agent = f"Rp{val_tsel_paid_agent:,.0f}".replace(",", ".") if val_tsel_paid_agent > 0 else "Rp0"
 
+# Membersihkan dan mengubah kolom AmountSAP menjadi tipe data angka (numerik)
+df['AmountSAP_clean'] = (
+    df['AmountSAP']
+    .astype(str)
+    .str.replace('Rp', '', case=False, regex=False)
+    .str.replace('.', '', regex=False)
+    .str.replace(',', '.', regex=False)
+    .str.strip()
+)
+df['AmountSAP_clean'] = pd.to_numeric(df['AmountSAP_clean'], errors='coerce').fillna(0)
 
+# Filter DataFrame khusus untuk StatusSAP Cleared atau Paid
+df_filtered = df[df['StatusSAP'].astype(str).str.contains('Cleared|Paid', case=False, na=False)]
+
+# Hitung total nilai menggunakan kolom yang sudah bersih
+val_tsel_paid_agent = df_filtered['AmountSAP_clean'].sum() if 'AmountSAP_clean' in df_filtered.columns else 0
 st.subheader("🔄 End-to-End Process Workflow & SLA")
 
 html_content = f"""
