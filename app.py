@@ -341,38 +341,6 @@ st.markdown("---")
 # ==========================================
 # 6. END-TO-END PROCESS WORKFLOW & SLA
 # ==========================================
-# Pastikan variabel penampung aman dari NameError dengan inisialisasi awal
-val_payout_bm = locals().get('val_payout_bm', 0)
-val_huawei_agent = locals().get('val_huawei_agent', 0)
-val_agent_tsel = locals().get('val_agent_tsel', 0)
-val_dn_issued = locals().get('val_dn_issued', 0)
-val_payin_huawei = locals().get('val_payin_huawei', 0)
-# val_tsel_paid_agent sudah diambil dari AmountSAP sebelumnya
-
-# Format string mata uang Rupiah
-str_payout_bm = f"Rp{val_payout_bm:,.0f}".replace(",", ".") if val_payout_bm > 0 else "Rp0"
-str_huawei_agent = f"Rp{val_huawei_agent:,.0f}".replace(",", ".") if val_huawei_agent > 0 else "Rp0"
-str_agent_tsel = f"Rp{val_agent_tsel:,.0f}".replace(",", ".") if val_agent_tsel > 0 else "Rp0"
-str_dn_issued = f"Rp{val_dn_issued:,.0f}".replace(",", ".") if val_dn_issued > 0 else "Rp0"
-str_payin_huawei = f"Rp{val_payin_huawei:,.0f}".replace(",", ".") if val_payin_huawei > 0 else "Rp0"
-str_tsel_paid_agent = f"Rp{val_tsel_paid_agent:,.0f}".replace(",", ".") if val_tsel_paid_agent > 0 else "Rp0"
-
-# Membersihkan dan mengubah kolom AmountSAP menjadi tipe data angka (numerik)
-df['AmountSAP_clean'] = (
-    df['AmountSAP']
-    .astype(str)
-    .str.replace('Rp', '', case=False, regex=False)
-    .str.replace('.', '', regex=False)
-    .str.replace(',', '.', regex=False)
-    .str.strip()
-)
-df['AmountSAP_clean'] = pd.to_numeric(df['AmountSAP_clean'], errors='coerce').fillna(0)
-
-# Filter DataFrame khusus untuk StatusSAP Cleared atau Paid
-df_filtered = df[df['StatusSAP'].astype(str).str.contains('Cleared|Paid', case=False, na=False)]
-
-# Hitung total nilai menggunakan kolom yang sudah bersih
-val_tsel_paid_agent = df_filtered['AmountSAP_clean'].sum() if 'AmountSAP_clean' in df_filtered.columns else 0
 st.subheader("🔄 End-to-End Process Workflow & SLA")
 
 html_content = f"""
@@ -433,6 +401,7 @@ html_content = f"""
         </div>
         <div class="arrow-right">➔</div>
         <div class="flow-card-wrapper">
+            <!-- Nilai Telkomsel Paid to Agent berdasarkan AmountSAP & StatusSAP Cleared/Paid -->
             <div class="amount-badge">{str_tsel_paid_agent}</div>
             <div class="flow-card card-telkomsel">Telkomsel Paid to Agent</div>
             <div class="sla-label">SLA 2-4 Weeks</div>
