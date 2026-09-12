@@ -320,16 +320,35 @@ with col2:
         ny_val = df_c2[~mask_paid][col_amt].sum()
         create_compact_donut_card("Huawei To Agent", val_huawei_agent, ny_val, key="kpi_2")
 
+# 3. Agent To Telkomsel (Sinkron dengan Logika Tabel TSEL)
 with col3:
     df_c3 = df_filtered.copy()
-    col_status, col_amt, col_inv = 'Status', 'NET AMOUNT', 'Invoice Agent'
-    if col_inv in df_c3.columns:
-        df_c3 = df_c3[df_c3[col_inv].astype(str).str.upper().str.strip() == 'INVOICE DONE']
-    if col_status in df_c3.columns and col_amt in df_c3.columns:
-        mask_paid = df_c3[col_status].astype(str).str.upper().str.strip() == 'PAID'
-        val_agent_tsel = df_c3[mask_paid][col_amt].sum()
-        ny_val = df_c3[~mask_paid][col_amt].sum()
+    
+    # Normalisasi nama kolom agar aman terhadap perbedaan spasi/kapitalisasi di GitHub
+    df_c3.columns = df_c3.columns.astype(str).str.strip()
+    
+    col_amt = next((c for c in ['NET AMOUNT', 'Net Amount', 'net amount'] if c in df_c3.columns), 'NET AMOUNT')
+    col_inv_agent = next((c for c in ['Invoice Agent', 'INVOICE AGENT', 'invoice agent'] if c in df_c3.columns), None)
+    
+    if col_amt in df_c3.columns:
+        df_c3[col_amt] = pd.to_numeric(df_c3[col_amt], errors='coerce').fillna(0)
+        
+        if col_inv_agent:
+            inv_clean = df_c3[col_inv_agent].astype(str).str.upper().str.strip()
+            mask_inv_done = inv_clean == 'INVOICE DONE'
+            mask_inv_ny = inv_clean.isin(['NY INVOICE', 'NY INVOICE DONE', 'NOT YET INVOICE']) | (~mask_inv_done)
+            
+            val_agent_tsel = df_c3[mask_inv_done][col_amt].sum()  # Setara total INV. DONE
+            ny_val = df_c3[mask_inv_ny][col_amt].sum()            # Setara total INV. NY
+        else:
+            val_agent_tsel = 0
+            ny_val = df_c3[col_amt].sum()
+            
         create_compact_donut_card("Agent To Telkomsel", val_agent_tsel, ny_val, key="kpi_3")
+    else:
+        st.warning("Kolom NET AMOUNT tidak ditemukan")
+
+st.markdown("---")
 
 with col4:
     df_c4 = df_filtered.copy()
