@@ -655,111 +655,181 @@ if col_reg in df_inv_reg.columns and col_status_sap in df_inv_reg.columns and co
 st.markdown("---")
 
 # ==========================================
-# 9. PROCESS REIMBURSEMENT SUMMARY TABLE
+# 9. PROCESS REIMBURSEMENT SUMMARY TABLE (BERWARNA)
 # ==========================================
 st.subheader("📊 Process Reimbursement Summary")
-show_setoff_col = st.checkbox("Show 'Amount Paid Setoff' Column", value=True, key="toggle_setoff_col")
+
+# Tombol Pilihan untuk menampilkan/menyembunyikan kolom Setoff Data
+show_setoff_col = st.checkbox("Show 'Setoff Data'", value=False)
+
 
 def generate_reimbursement_summary_table(df):
     df_calc = df.copy()
-    df_calc.columns = df_calc.columns.astype(str).str.strip()
     
-    col_sap = next((c for c in ['Amount SAP', 'AMOUNT SAP'] if c in df_calc.columns), 'Amount SAP')
-    col_paid = next((c for c in ['Amount Paid', 'AMOUNT PAID', 'Amount Actual Paid'] if c in df_calc.columns), 'Amount Paid')
-    col_status_sap = next((c for c in ['StatusSAP', 'Status SAP', 'STATUS SAP'] if c in df_calc.columns), None)
+    # Normalisasi nama kolom untuk mencegah error perbedaan spasi/huruf di GitHub
+    df_calc.columns = df_calc.columns.astype(str).str.strip()
 
-    df_calc['Amount SAP'] = pd.to_numeric(df_calc.get(col_sap, 0), errors='coerce').fillna(0)
-    df_calc['Amount Paid'] = pd.to_numeric(df_calc.get(col_paid, 0), errors='coerce').fillna(0)
-    df_calc['NET AMOUNT'] = pd.to_numeric(df_calc.get('NET AMOUNT', 0), errors='coerce').fillna(0)
-    df_calc['Amount Paid Based on Setoff Data'] = pd.to_numeric(df_calc.get('Amount Paid Based on Setoff Data', 0), errors='coerce').fillna(0)
+    # 1. Bersihkan & Petakan Kolom Numerik (Deteksi Fleksibel)
+    col_paid_target = next((c for c in ['Amount Paid', 'AMOUNT PAID', 'Amount Actual Paid', 'AMOUNT ACTUAL PAID'] if c in df_calc.columns), 'Amount Paid')
+    col_sap_target = next((c for c in ['Amount SAP', 'AMOUNT SAP', 'AmountSap'] if c in df_calc.columns), 'Amount SAP')
+    col_setoff_target = next((c for c in ['Amount Paid Based on Setoff Data', 'AMOUNT PAID BASED ON SETOFF DATA'] if c in df_calc.columns), 'Amount Paid Based on Setoff Data')
+    col_net_target = next((c for c in ['NET AMOUNT', 'Net Amount', 'net amount'] if c in df_calc.columns), 'NET AMOUNT')
 
+    # Mapping ke dataframe lokal perhitungan
+    df_calc['NET AMOUNT'] = pd.to_numeric(df_calc.get(col_net_target, 0), errors='coerce').fillna(0)
+    df_calc['Amount SAP'] = pd.to_numeric(df_calc.get(col_sap_target, 0), errors='coerce').fillna(0)
+    df_calc['Amount Paid Based on Setoff Data'] = pd.to_numeric(df_calc.get(col_setoff_target, 0), errors='coerce').fillna(0)
+    
+    if col_paid_target in df_calc.columns:
+        df_calc['Amount Paid'] = pd.to_numeric(df_calc[col_paid_target], errors='coerce').fillna(0)
+    elif 'Amount Actual Paid' in df_calc.columns:
+        df_calc['Amount Paid'] = pd.to_numeric(df_calc['Amount Actual Paid'], errors='coerce').fillna(0)
+    else:
+        df_calc['Amount Paid'] = 0
+
+    # 2. Filter Khusus Kolom Amount SAP berdasarkan Status SAP ("CLEARED" atau "PAID")
+    col_status_sap = next((c for c in ['StatusSAP', 'Status SAP', 'STATUS SAP', 'Status_SAP'] if c in df_calc.columns), None)
+    
     if col_status_sap:
         sap_status_clean = df_calc[col_status_sap].astype(str).str.upper().str.strip()
         mask_sap_cleared = sap_status_clean.isin(['CLEARED', 'PAID', 'CLEARED/PAID'])
-        df_calc['Amount SAP Filtered'] = np.where(mask_sap_cleared, df_calc['Amount SAP'], df_calc['Amount SAP'])
+        df_calc['Amount SAP Filtered'] = np.where(mask_sap_cleared, df_calc['Amount SAP'], 0)
     else:
         df_calc['Amount SAP Filtered'] = df_calc['Amount SAP']
 
-    col_m = next((c for c in ['Payment Month', 'Month', 'Periode Month'] if c in df_calc.columns), 'Payment Month')
+    # 3. Identifikasi Kolom Payment Month
+    col_m = next((c for c in ['Payment Month', 'Month', 'Periode Month', 'PAYMENT MONTH'] if c in df_calc.columns), 'Payment Month')
     if col_m not in df_calc.columns:
+        st.warning('Kolom Payment Month tidak ditemukan.')
         return pd.DataFrame(), col_m
 
+    # 4. GroupBy berdasarkan Rows: Payment Month & Values: Sum of Kolom
     summary = df_calc.groupby(col_m, as_index=False, dropna=False).agg({
         'NET AMOUNT': 'sum',
         'Amount SAP Filtered': 'sum',
         'Amount Paid Based on Setoff Data': 'sum',
-        'Amount Paid': 'sum'
+        'Amount Paid': 'sum',
     })
 
+    # 5. Pengurutan Kronologis Payment Month (Lama -> Baru)
+    summary['date_parsed'] = pd.to_datetime(
+        summary[col_m].astype(str), format='%b-%y', errors='coerce'
+    )
+    valid_dates = summary[summary['date_parsed'].notna()].sort_values(
+        'date_parsed', ascending=True
+    )
+    invalid_dates = summary[summary['date_parsed'].isna()]
+
+    summary = pd.concat([valid_dates, invalid_dates], ignore_index=True)
+    summary = summary.drop(columns=['date_parsed'])
+
+    # 6. Formulas: Hitung GAP = Sum of NET AMOUNT - Sum of Amount Paid
     summary['GAP'] = summary['NET AMOUNT'] - summary['Amount Paid']
 
+    # 7. Baris Grand Total
     grand_total = pd.DataFrame([{
         col_m: 'Grand Total',
         'NET AMOUNT': summary['NET AMOUNT'].sum(),
         'Amount SAP Filtered': summary['Amount SAP Filtered'].sum(),
         'Amount Paid Based on Setoff Data': summary['Amount Paid Based on Setoff Data'].sum(),
         'Amount Paid': summary['Amount Paid'].sum(),
-        'GAP': summary['GAP'].sum()
+        'GAP': summary['GAP'].sum(),
     }])
 
-    result = pd.concat([summary, grand_total], ignore_index=True)
-    return sort_summary_by_month(result, col_m), col_m
+    summary_final = pd.concat([summary, grand_total], ignore_index=True)
 
+    return summary_final, col_m
+
+
+# Menghasilkan Dataframe Raw (Angka Murni)
 df_summary_raw, col_month_name = generate_reimbursement_summary_table(df_filtered)
 
 if not df_summary_raw.empty:
+
+    # Helper Format Rupiah Sesuai Excel/Gambar
     def fmt_rp(val):
         if abs(val) < 1e-9:
-            return "Rp -"
+            return 'Rp -'
         elif val < 0:
-            return f"-Rp {abs(val):,.0f}".replace(",", ".")
+            return f"-Rp {abs(val):,.0f}".replace(',', '.')
         else:
-            return f"Rp {val:,.0f}".replace(",", ".")
+            return f"Rp {val:,.0f}".replace(',', '.')
 
-    rows_html = ""
+    # Render Tabel HTML Berwarna
+    rows_html = ''
     for idx, row in df_summary_raw.iterrows():
         val_m = row[col_month_name]
-        is_total = (val_m == 'Grand Total')
-        if pd.isna(val_m) or str(val_m).strip().lower() in ['nan', 'none', '']:
-            val_m = "(blank)"
+        is_total = val_m == 'Grand Total'
 
-        row_style = "background-color: #b4c6e7; font-weight: bold;" if is_total else ("background-color: #ffffff;" if idx % 2 == 0 else "background-color: #f2f2f2;")
-        display_style_setoff = "" if show_setoff_col else "display: none;"
+        # Penanganan Label Kosong/None
+        if pd.isna(val_m) or str(val_m).strip().lower() in ['nan', 'none', '']:
+            val_m = '(blank)'
+
+        row_class = (
+            'row-total'
+            if is_total
+            else ('row-even' if idx % 2 == 0 else 'row-odd')
+        )
+
+        # Kolom Setoff Data yang ingin disembunyikan/ditampilkan
+        setoff_td_html = (
+            f'<td class="align-right">'
+            f'{fmt_rp(row["Amount Paid Based on Setoff Data"])}</td>'
+            if show_setoff_col
+            else ''
+        )
 
         rows_html += f"""
-        <tr style="{row_style}">
-            <td style="text-align: center; border: 1px solid #7f7f7f; padding: 5px;">{val_m}</td>
-            <td style="text-align: right; font-weight: bold; border: 1px solid #7f7f7f; padding: 5px;">{fmt_rp(row['NET AMOUNT'])}</td>
-            <td style="text-align: right; border: 1px solid #7f7f7f; padding: 5px;">{fmt_rp(row['Amount SAP Filtered'])}</td>
-            <td style="text-align: right; border: 1px solid #7f7f7f; padding: 5px; {display_style_setoff}">{fmt_rp(row['Amount Paid Based on Setoff Data'])}</td>
-            <td style="text-align: right; border: 1px solid #7f7f7f; padding: 5px;">{fmt_rp(row['Amount Paid'])}</td>
-            <td style="text-align: right; font-weight: bold; border: 1px solid #7f7f7f; padding: 5px;">{fmt_rp(row['GAP'])}</td>
+        <tr class="{row_class}">
+            <td class="align-center">{val_m}</td>
+            <td class="align-right col-bold">{fmt_rp(row['NET AMOUNT'])}</td>
+            <td class="align-right">{fmt_rp(row['Amount SAP Filtered'])}</td>
+            {setoff_td_html}
+            <td class="align-right">{fmt_rp(row['Amount Paid'])}</td>
+            <td class="align-right col-bold">{fmt_rp(row['GAP'])}</td>
         </tr>
         """
 
-    header_style_setoff = "" if show_setoff_col else "display: none;"
+    # Header Kolom Setoff Dinamis
+    setoff_th_html = (
+        '<th class="hdr-blue" style="width: 22%;">Sum of Amount Paid Based on Setoff Data</th>'
+        if show_setoff_col
+        else ''
+    )
 
     full_html = f"""
     <!DOCTYPE html>
     <html>
     <head>
     <style>
-        body {{ font-family: Arial, sans-serif; margin: 0; background-color: transparent; }}
-        table {{ width: 100%; border-collapse: collapse; font-size: 11px; color: #000; }}
-        th {{ border: 1px solid #7f7f7f; padding: 6px; text-align: center; font-weight: bold; }}
+        body {{ font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: transparent; }}
+        .process-table {{ width: 100%; border-collapse: collapse; font-size: 11px; color: #000000; }}
+        .process-table th, .process-table td {{ border: 1px solid #7f7f7f; padding: 5px 8px; white-space: nowrap; }}
+        
+        /* Stylings & Colors Sesuai Excel */
+        .hdr-month {{ background-color: #d9e1f2; font-weight: bold; text-align: center; vertical-align: middle; }}
+        .hdr-blue {{ background-color: #b4c6e7; font-weight: bold; text-align: center; vertical-align: middle; }}
+        
+        .row-total {{ font-weight: bold; background-color: #b4c6e7; }}
+        .row-even {{ background-color: #ffffff; }}
+        .row-odd {{ background-color: #f2f2f2; }}
+        
+        .align-center {{ text-align: center; }}
+        .align-right {{ text-align: right; }}
+        .col-bold {{ font-weight: bold; }}
     </style>
     </head>
     <body>
     <div style="overflow-x: auto;">
-        <table>
+        <table class="process-table">
             <thead>
                 <tr>
-                    <th style="background-color: #d9e1f2; width: 12%;">Payment Month</th>
-                    <th style="background-color: #b4c6e7;">NET AMOUNT</th>
-                    <th style="background-color: #b4c6e7;">Amount SAP</th>
-                    <th style="background-color: #b4c6e7; {header_style_setoff}">Amount Paid Setoff</th>
-                    <th style="background-color: #b4c6e7;">Amount Paid</th>
-                    <th style="background-color: #b4c6e7;">GAP</th>
+                    <th class="hdr-month" style="width: 12%;">Payment Month</th>
+                    <th class="hdr-blue" style="width: 18%;">Sum of NET AMOUNT</th>
+                    <th class="hdr-blue" style="width: 20%;">Sum of Amount SAP (Cleared/Paid)</th>
+                    {setoff_th_html}
+                    <th class="hdr-blue" style="width: 16%;">Sum of Amount Paid</th>
+                    <th class="hdr-blue" style="width: 12%;">GAP</th>
                 </tr>
             </thead>
             <tbody>
@@ -770,7 +840,9 @@ if not df_summary_raw.empty:
     </body>
     </html>
     """
-    components.html(full_html, height=650, scrolling=False)
+
+    calc_height = min(750, max(200, (len(df_summary_raw) + 2) * 28))
+    components.html(full_html, height=calc_height, scrolling=True)
 
 # ==========================================
 # 10. REIMBURSEMENT SUMMARY TO TSEL & AGENT
