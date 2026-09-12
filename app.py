@@ -1,256 +1,190 @@
-import io
-import re
-import numpy as np
-import pandas as pd
-import plotly.graph_objects as go
 import streamlit as st
+import pandas as pd
+import numpy as np
+import plotly.graph_objects as go
 import streamlit.components.v1 as components
-
+import re
 @st.cache_data
 def convert_df_to_excel(dataframe):
-  output = io.BytesIO()
-  with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-    dataframe.to_excel(writer, index=False, sheet_name='Data_GSheet')
-  return output.getvalue()
-
-
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        dataframe.to_excel(writer, index=False, sheet_name='Data_GSheet')
+    return output.getvalue()
 # ==========================================
 # 1. KONFIGURASI HALAMAN & HEADER
 # ==========================================
 st.set_page_config(
-    page_title='Dashboard POB IBS Building Management', page_icon='📊', layout='wide'
+    page_title="Dashboard POB IBS Building Management",
+    page_icon="📊",
+    layout="wide"
 )
 
-st.title('📊 DASHBOARD POB IBS BUILDING MANAGEMENT')
-st.markdown('---')
-
+st.title("📊 DASHBOARD POB IBS BUILDING MANAGEMENT")
+st.markdown("---")
 
 # ==========================================
 # 2. BACA DATA GOOGLE SHEETS & DATA CLEANING
 # ==========================================
-# PERBAIKAN: Gunakan SHEET_ID yang benar sesuai link Google Sheets Anda
-SHEET_ID = '1hISVxOLz8dfyzpNsW3WVwSZXn8G7W-YU'
-
-# URL Export CSV Google Sheets
-GSHEET_URL = (
-    f'https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv'
-)
-
+SHEET_ID = "1g3Y6GjXUgjWFtKxC9ul8i0vZgHvamkDwT7j4-_95NMk"
+GSHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
 
 def clean_currency_advanced(val):
-  """Mencegah angka berubah jadi NaN/0 akibat format mata uang unik"""
-  if pd.isna(val) or val is None:
-    return 0.0
-  val_str = str(val).strip()
-  if not val_str or val_str.lower() in [
-      'nan',
-      'null',
-      '-',
-      '#value!',
-      '#n/a',
-  ]:
-    return 0.0
+    """Mencegah angka berubah jadi NaN/0 akibat format mata uang unik"""
+    if pd.isna(val) or val is None:
+        return 0.0
+    val_str = str(val).strip()
+    if not val_str or val_str.lower() in ['nan', 'null', '-', '#value!', '#n/a']:
+        return 0.0
+    
+    is_negative = False
+    if val_str.startswith('(') and val_str.endswith(')'):
+        is_negative = True
+        val_str = val_str[1:-1]
+        
+    cleaned = re.sub(r'[^0-9.-]', '', val_str)
+    try:
+        num = float(cleaned) if cleaned != '' else 0.0
+        return -num if is_negative else num
+    except ValueError:
+        return 0.0
 
-  is_negative = False
-  if val_str.startswith('(') and val_str.endswith(')'):
-    is_negative = True
-    val_str = val_str[1:-1]
+@st.cache_data(ttl=10)
+def load_data():
+    df = pd.read_csv(GSHEET_URL, low_memory=False)
+    
+    # 1. Bersihkan Nama Kolom
+    df.columns = [str(col).strip() for col in df.columns]
+    
+    # 2. Standar Mapping Nama Kolom
+    mapping = {}
+    for col in df.columns:
+        c_upper = col.upper().replace('_', ' ').strip()
+        if c_upper == 'NET AMOUNT':
+            mapping[col] = 'NET AMOUNT'
+        elif c_upper == 'INVOICE AMOUNT':
+            mapping[col] = 'Invoice Amount'
+        elif 'STATUS REIMBURSE' in c_upper:
+            mapping[col] = 'Status Reimburse Actual'
+        elif c_upper == 'INVOICE AGENT':
+            mapping[col] = 'Invoice Agent'
+        elif c_upper == 'STATUS':
+            mapping[col] = 'Status'
+        elif c_upper in ['STATUS SAP', 'STATUSSAP', 'STATUS_SAP']:
+            mapping[col] = 'StatusSAP'
+        elif c_upper == 'AREA':
+            mapping[col] = 'Area'
+        elif c_upper == 'NEW REGIONAL':
+            mapping[col] = 'new regional'
 
-  cleaned = re.sub(r'[^0-9.-]', '', val_str)
-  try:
-    num = float(cleaned) if cleaned != '' else 0.0
-    return -num if is_negative else num
-  except ValueError:
-    return 0.0
+    df = df.rename(columns=mapping)
+    df = df.loc[:, ~df.columns.duplicated(keep='first')].copy()
 
+    # 3. Cleaning Kolom Area
+    if 'Area' in df.columns:
+        df['Area'] = df['Area'].astype(str).str.strip().str.title()
 
-@st.cache_data(ttl=5)
-def load_data(url):
-  df = pd.read_csv(url, low_memory=False)
+    # 4. Parsing Numerik
+    numeric_cols = [
+        'Invoice Amount', 'NET AMOUNT', 'Amount SAP', 
+        'Amount Paid Based on Setoff Data', 'Amount Actual Paid', 
+        'Amount Paid'
+    ]
+    for col in numeric_cols:
+        if col in df.columns:
+            df[col] = df[col].apply(clean_currency_advanced)
 
-  # 1. Bersihkan Nama Kolom
-  df.columns = [str(col).strip() for col in df.columns]
-
-  # 2. Standar Mapping Nama Kolom
-  mapping = {}
-  for col in df.columns:
-    c_upper = col.upper().replace('_', ' ').strip()
-    if c_upper == 'NET AMOUNT':
-      mapping[col] = 'NET AMOUNT'
-    elif c_upper == 'INVOICE AMOUNT':
-      mapping[col] = 'Invoice Amount'
-    elif 'STATUS REIMBURSE' in c_upper:
-      mapping[col] = 'Status Reimburse Actual'
-    elif c_upper == 'INVOICE AGENT':
-      mapping[col] = 'Invoice Agent'
-    elif c_upper == 'STATUS':
-      mapping[col] = 'Status'
-    elif c_upper in ['STATUS SAP', 'STATUSSAP', 'STATUS_SAP']:
-      mapping[col] = 'StatusSAP'
-    elif c_upper == 'AREA':
-      mapping[col] = 'Area'
-    elif c_upper == 'NEW REGIONAL':
-      mapping[col] = 'new regional'
-    elif c_upper == 'AMOUNT PAID':  # Tambahkan mapping untuk Amount Paid
-      mapping[col] = 'Amount Paid'
-    elif c_upper == 'GAP':  # Tambahkan mapping untuk GAP
-      mapping[col] = 'GAP'
-
-  df = df.rename(columns=mapping)
-  df = df.loc[:, ~df.columns.duplicated(keep='first')].copy()
-
-  # 3. Cleaning Kolom Area
-  if 'Area' in df.columns:
-    df['Area'] = df['Area'].astype(str).str.strip().str.title()
-
-  # 4. Parsing Numerik (Pastikan Amount Paid dan GAP masuk daftar)
-  numeric_cols = [
-      'Invoice Amount',
-      'NET AMOUNT',
-      'Amount SAP',
-      'Amount Paid Based on Setoff Data',
-      'Amount Actual Paid',
-      'Amount Paid',
-      'GAP',
-  ]
-  for col in numeric_cols:
-    if col in df.columns:
-      df[col] = df[col].apply(clean_currency_advanced)
-
-  return df
-
-
-# Tombol Refresh Manual di Sidebar
-if st.sidebar.button('🔄 Refresh / Clear Data Cache'):
-  st.cache_data.clear()
-  st.success('Cache berhasil dibersihkan, memuat ulang data...')
-  st.rerun()
+    return df
 
 try:
-  df_raw = load_data(GSHEET_URL)
+    df_raw = load_data()
 except Exception as e:
-  st.error(f'❌ Gagal membaca data dari Google Sheets. Detail: {e}')
-  st.stop()
+    st.error(f"❌ Gagal membaca data dari Google Sheets. Detail: {e}")
+    st.stop()
 
 df_filtered = df_raw.copy()
 
 # ==========================================
 # HELPER: URUTKAN LABEL BULAN SECARA KRONOLOGIS
 # ==========================================
-
-
 def sort_month_labels(values):
-  unique_vals = []
-  seen = set()
-  for v in values:
-    v_str = str(v).strip()
-    if v_str.lower() in ['nan', 'none', ''] or v_str in seen:
-      continue
-    seen.add(v_str)
-    unique_vals.append(v_str)
+    """Urutkan daftar label bulan (mis. 'Sep-24', 'Oct 2024', dsb) secara
+    kronologis dari yang paling awal ke paling baru. Format yang tidak
+    bisa di-parse tetap disertakan di akhir (urut alfabet) agar data
+    tidak hilang."""
+    unique_vals = []
+    seen = set()
+    for v in values:
+        v_str = str(v).strip()
+        if v_str.lower() in ['nan', 'none', ''] or v_str in seen:
+            continue
+        seen.add(v_str)
+        unique_vals.append(v_str)
 
-  date_formats = [
-      '%b-%y',
-      '%b-%Y',
-      '%B-%y',
-      '%B-%Y',
-      '%b %Y',
-      '%B %Y',
-      '%Y-%m',
-      '%m-%Y',
-      '%m/%Y',
-      '%b/%y',
-      '%b/%Y',
-  ]
+    date_formats = ['%b-%y', '%b-%Y', '%B-%y', '%B-%Y', '%b %Y', '%B %Y',
+                     '%Y-%m', '%m-%Y', '%m/%Y', '%b/%y', '%b/%Y']
 
-  def parse_month(v_str):
-    for fmt in date_formats:
-      try:
-        return pd.to_datetime(v_str, format=fmt)
-      except (ValueError, TypeError):
-        continue
-    try:
-      return pd.to_datetime(v_str)
-    except (ValueError, TypeError):
-      return pd.NaT
+    def parse_month(v_str):
+        for fmt in date_formats:
+            try:
+                return pd.to_datetime(v_str, format=fmt)
+            except (ValueError, TypeError):
+                continue
+        try:
+            return pd.to_datetime(v_str)
+        except (ValueError, TypeError):
+            return pd.NaT
 
-  parsed = [(v, parse_month(v)) for v in unique_vals]
-  parsed.sort(
-      key=lambda x: (
-          pd.isna(x[1]),
-          x[1] if not pd.isna(x[1]) else pd.Timestamp.min,
-          x[0],
-      )
-  )
-  return [v for v, _ in parsed]
+    parsed = [(v, parse_month(v)) for v in unique_vals]
+    parsed.sort(key=lambda x: (pd.isna(x[1]), x[1] if not pd.isna(x[1]) else pd.Timestamp.min, x[0]))
+    return [v for v, _ in parsed]
 
 
-def sort_summary_by_month(
-    summary_df, col_m, total_labels=('Grand Total', '(blank)')
-):
-  if summary_df.empty or col_m not in summary_df.columns:
-    return summary_df
+def sort_summary_by_month(summary_df, col_m, total_labels=('Grand Total', '(blank)')):
+    """Urutkan baris hasil groupby berdasarkan bulan secara kronologis,
+    dengan baris total (Grand Total/, blank ) tetap di akhir tabel."""
+    if summary_df.empty or col_m not in summary_df.columns:
+        return summary_df
 
-  mask_total = summary_df[col_m].astype(str).isin(total_labels)
-  df_months = summary_df[~mask_total].copy()
-  df_totals = summary_df[mask_total].copy()
+    mask_total = summary_df[col_m].astype(str).isin(total_labels)
+    df_months = summary_df[~mask_total].copy()
+    df_totals = summary_df[mask_total].copy()
 
-  month_order = sort_month_labels(df_months[col_m])
-  df_months[col_m] = pd.Categorical(
-      df_months[col_m], categories=month_order, ordered=True
-  )
-  df_months = df_months.sort_values(col_m).reset_index(drop=True)
-  df_months[col_m] = df_months[col_m].astype(str)
+    month_order = sort_month_labels(df_months[col_m])
+    df_months[col_m] = pd.Categorical(df_months[col_m], categories=month_order, ordered=True)
+    df_months = df_months.sort_values(col_m).reset_index(drop=True)
+    df_months[col_m] = df_months[col_m].astype(str)
 
-  return pd.concat([df_months, df_totals], ignore_index=True)
-
+    return pd.concat([df_months, df_totals], ignore_index=True)
 
 # ==========================================
 # 3. SIDEBAR CONTROL & GLOBAL FILTERS
 # ==========================================
-st.sidebar.header('🔍 Global Filters')
+st.sidebar.header("🔍 Global Filters")
 
 # Filter Area
 if 'Area' in df_raw.columns:
-  raw_areas = df_raw['Area'].dropna().unique().tolist()
-  clean_areas = sorted(
-      [str(x) for x in raw_areas if str(x).lower() not in ['nan', 'none', '']]
-  )
-  list_area = ['(All)'] + clean_areas
-  selected_area = st.sidebar.selectbox('Area Filter', options=list_area, index=0)
-  if selected_area != '(All)':
-    df_filtered = df_filtered[df_filtered['Area'] == selected_area]
+    raw_areas = df_raw['Area'].dropna().unique().tolist()
+    clean_areas = sorted([str(x) for x in raw_areas if str(x).lower() not in ['nan', 'none', '']])
+    list_area = ["(All)"] + clean_areas
+    selected_area = st.sidebar.selectbox("Area Filter", options=list_area, index=0)
+    if selected_area != "(All)":
+        df_filtered = df_filtered[df_filtered['Area'] == selected_area]
 
 # Filter Payment Month
-col_month = (
-    'Payment Month'
-    if 'Payment Month' in df_filtered.columns
-    else ('Month' if 'Month' in df_filtered.columns else None)
-)
+col_month = 'Payment Month' if 'Payment Month' in df_filtered.columns else ('Month' if 'Month' in df_filtered.columns else None)
 if col_month and col_month in df_filtered.columns:
-  list_month = ['(All Months)'] + sort_month_labels(df_filtered[col_month])
-  selected_month = st.sidebar.selectbox(
-      'Payment Month Filter', options=list_month, index=0
-  )
-  if selected_month != '(All Months)':
-    df_filtered = df_filtered[
-        df_filtered[col_month].astype(str) == selected_month
-    ]
+    list_month = ["(All Months)"] + sort_month_labels(df_filtered[col_month])
+    selected_month = st.sidebar.selectbox("Payment Month Filter", options=list_month, index=0)
+    if selected_month != "(All Months)":
+        df_filtered = df_filtered[df_filtered[col_month].astype(str) == selected_month]
 
 # Filter New Regional
 if 'new regional' in df_filtered.columns:
-  list_reg = ['(All Regionals)'] + [
-      str(x)
-      for x in df_filtered['new regional'].dropna().unique().tolist()
-      if str(x).lower() not in ['nan', 'none', '']
-  ]
-  selected_reg = st.sidebar.selectbox(
-      'New Regional Filter', options=list_reg, index=0
-  )
-  if selected_reg != '(All Regionals)':
-    df_filtered = df_filtered[
-        df_filtered['new regional'].astype(str) == selected_reg
-    ]
+    list_reg = ["(All Regionals)"] + [str(x) for x in df_filtered['new regional'].dropna().unique().tolist() if str(x).lower() not in ['nan', 'none', '']]
+    selected_reg = st.sidebar.selectbox("New Regional Filter", options=list_reg, index=0)
+    if selected_reg != "(All Regionals)":
+        df_filtered = df_filtered[df_filtered['new regional'].astype(str) == selected_reg]
+
 
 # ==========================================
 # FUNGSI HELPER: COMPACT DONUT CHART (KPI)
@@ -320,35 +254,16 @@ with col2:
         ny_val = df_c2[~mask_paid][col_amt].sum()
         create_compact_donut_card("Huawei To Agent", val_huawei_agent, ny_val, key="kpi_2")
 
-# 3. Agent To Telkomsel (Sinkron dengan Logika Tabel TSEL)
 with col3:
     df_c3 = df_filtered.copy()
-    
-    # Normalisasi nama kolom agar aman terhadap perbedaan spasi/kapitalisasi di GitHub
-    df_c3.columns = df_c3.columns.astype(str).str.strip()
-    
-    col_amt = next((c for c in ['NET AMOUNT', 'Net Amount', 'net amount'] if c in df_c3.columns), 'NET AMOUNT')
-    col_inv_agent = next((c for c in ['Invoice Agent', 'INVOICE AGENT', 'invoice agent'] if c in df_c3.columns), None)
-    
-    if col_amt in df_c3.columns:
-        df_c3[col_amt] = pd.to_numeric(df_c3[col_amt], errors='coerce').fillna(0)
-        
-        if col_inv_agent:
-            inv_clean = df_c3[col_inv_agent].astype(str).str.upper().str.strip()
-            mask_inv_done = inv_clean == 'INVOICE DONE'
-            mask_inv_ny = inv_clean.isin(['NY INVOICE', 'NY INVOICE DONE', 'NOT YET INVOICE']) | (~mask_inv_done)
-            
-            val_agent_tsel = df_c3[mask_inv_done][col_amt].sum()  # Setara total INV. DONE
-            ny_val = df_c3[mask_inv_ny][col_amt].sum()            # Setara total INV. NY
-        else:
-            val_agent_tsel = 0
-            ny_val = df_c3[col_amt].sum()
-            
+    col_status, col_amt, col_inv = 'Status', 'NET AMOUNT', 'Invoice Agent'
+    if col_inv in df_c3.columns:
+        df_c3 = df_c3[df_c3[col_inv].astype(str).str.upper().str.strip() == 'INVOICE DONE']
+    if col_status in df_c3.columns and col_amt in df_c3.columns:
+        mask_paid = df_c3[col_status].astype(str).str.upper().str.strip() == 'PAID'
+        val_agent_tsel = df_c3[mask_paid][col_amt].sum()
+        ny_val = df_c3[~mask_paid][col_amt].sum()
         create_compact_donut_card("Agent To Telkomsel", val_agent_tsel, ny_val, key="kpi_3")
-    else:
-        st.warning("Kolom NET AMOUNT tidak ditemukan")
-
-st.markdown("---")
 
 with col4:
     df_c4 = df_filtered.copy()
@@ -360,48 +275,21 @@ with col4:
         ny_val = df_c4[~mask_done][col_amt].sum()
         create_compact_donut_card("DN Issued", val_dn_issued, ny_val, key="kpi_4")
 
-# 5. Total Pay In To Huawei
 with col5:
     df_c5 = df_filtered.copy()
-    
-    # Normalisasi nama kolom untuk mengantisipasi perbedaan spasi/kapitalisasi di GitHub
-    df_c5.columns = df_c5.columns.astype(str).str.strip()
-    
-    col_status = next((c for c in ['Status Reimburse Actual', 'STATUS REIMBURSE ACTUAL'] if c in df_c5.columns), 'Status Reimburse Actual')
-    col_paid = next((c for c in ['Amount Paid', 'AMOUNT PAID'] if c in df_c5.columns), 'Amount Paid')
-    
-    # Deteksi fleksibel antara 'GAP' (seperti di local host) atau 'GAP PAID'
-    col_gap = next((c for c in ['GAP', 'GAP PAID', 'Gap'] if c in df_c5.columns), 'GAP')
-
-    if (
-        col_status in df_c5.columns
-        and col_paid in df_c5.columns
-        and col_gap in df_c5.columns
-    ):
-        # Paksa ubah kolom numerik jadi angka agar aman dari error string/kosong
-        df_c5[col_paid] = pd.to_numeric(df_c5[col_paid], errors='coerce').fillna(0.0)
-        df_c5[col_gap] = pd.to_numeric(df_c5[col_gap], errors='coerce').fillna(0.0)
-
-        # 1. Jumlahkan 2 header (Amount Paid + GAP) langsung per baris persis seperti local host
-        df_c5['Combined_Sum'] = df_c5[col_paid] + df_c5[col_gap]
-
-        # 2. Normalisasi teks status
+    col_status, col_amt = 'Status Reimburse Actual', 'NET AMOUNT'
+    if col_status in df_c5.columns and col_amt in df_c5.columns:
         status_clean = df_c5[col_status].astype(str).str.upper().str.strip()
+        
+        # 1. Bagian Done (hijau) mengambil nilai yang statusnya 'PAID' (target: 69.58)
+        mask_paid = status_clean == 'PAID'
+        val_payin_huawei = df_c5[mask_paid][col_amt].sum()
+        
+        # 2. Bagian Not Yet / NY (merah) mengambil nilai yang statusnya 'DN ISSUED' (target: 18.99)
+        mask_dn_issued = status_clean == 'DN ISSUED'
+        ny_val = df_c5[mask_dn_issued][col_amt].sum()
 
-        # 3. Hitung kondisi PAID (Done)
-        val_payin_huawei = df_c5.loc[
-            status_clean == 'PAID', 'Combined_Sum'
-        ].sum()
-
-        # 4. Hitung kondisi DN ISSUED (Not Yet Paid)
-        ny_val = df_c5.loc[status_clean == 'DN ISSUED', 'Combined_Sum'].sum()
-
-        create_compact_donut_card(
-            'Total Pay In To Huawei', val_payin_huawei, ny_val, key='kpi_5'
-        )
-    else:
-        st.warning('Kolom Status Reimburse Actual / Amount Paid / GAP N/A')
-
+        create_compact_donut_card("Total Pay In To Huawei", val_payin_huawei, ny_val, key="kpi_5")
 st.markdown("---")
 
 # ==========================================
@@ -655,190 +543,112 @@ if col_reg in df_inv_reg.columns and col_status_sap in df_inv_reg.columns and co
 st.markdown("---")
 
 # ==========================================
-# 9. PROCESS REIMBURSEMENT SUMMARY TABLE (BERWARNA)
+# 9. PROCESS REIMBURSEMENT SUMMARY TABLE
 # ==========================================
 st.subheader("📊 Process Reimbursement Summary")
 
-# --- DEBUGGING: Tampilkan semua kolom yang ada di df_filtered ---
-with st.expander("🔍 Cek Nama Kolom di Excel (Debug)", expanded=False):
-    st.write("Daftar kolom yang terbaca:", list(df_filtered.columns))
-
-# Tombol Pilihan untuk menampilkan/menyembunyikan kolom Setoff Data
-show_setoff_col = st.checkbox("Show 'Setoff Data'", value=False)
-
+# Tambahkan Checkbox untuk Hide / Show kolom Amount Paid Setoff
+show_setoff_col = st.checkbox("Show 'Amount Paid Setoff' Column", value=True, key="toggle_setoff_col")
 
 def generate_reimbursement_summary_table(df):
     df_calc = df.copy()
-    
-    # Normalisasi nama kolom untuk mencegah error perbedaan spasi/huruf di GitHub
-    df_calc.columns = df_calc.columns.astype(str).str.strip()
+    num_cols = ['NET AMOUNT', 'Amount SAP', 'Amount Paid Based on Setoff Data', 'Amount Paid']
+    for col in num_cols:
+        if col == 'Amount Paid' and col not in df_calc.columns and 'Amount Actual Paid' in df_calc.columns:
+            df_calc['Amount Paid'] = df_calc['Amount Actual Paid']
+        elif col not in df_calc.columns:
+            df_calc[col] = 0
 
-    # 1. Bersihkan & Petakan Kolom Numerik (Deteksi Fleksibel)
-    col_paid_target = next((c for c in ['Amount Paid', 'AMOUNT PAID', 'Amount Actual Paid', 'AMOUNT ACTUAL PAID'] if c in df_calc.columns), None)
-    col_sap_target = next((c for c in ['AmountSAP', 'AMOUNT SAP', 'Amount Sap'] if c in df_calc.columns), None)
-    col_setoff_target = next((c for c in ['Amount Paid Based on Setoff Data', 'AMOUNT PAID BASED ON SETOFF DATA'] if c in df_calc.columns), None)
-    col_net_target = next((c for c in ['NET AMOUNT', 'Net Amount', 'net amount'] if c in df_calc.columns), None)
-
-    # Mapping ke dataframe lokal perhitungan dengan aman
-    df_calc['NET AMOUNT'] = pd.to_numeric(df_calc[col_net_target], errors='coerce').fillna(0) if col_net_target in df_calc.columns else pd.Series(0.0, index=df_calc.index)
-    df_calc['Amount SAP'] = pd.to_numeric(df_calc[col_sap_target], errors='coerce').fillna(0) if col_sap_target in df_calc.columns else pd.Series(0.0, index=df_calc.index)
-    df_calc['Amount Paid Based on Setoff Data'] = pd.to_numeric(df_calc[col_setoff_target], errors='coerce').fillna(0) if col_setoff_target in df_calc.columns else pd.Series(0.0, index=df_calc.index)
-    
-    if col_paid_target in df_calc.columns:
-        df_calc['Amount Paid'] = pd.to_numeric(df_calc[col_paid_target], errors='coerce').fillna(0)
-    elif 'Amount Actual Paid' in df_calc.columns:
-        df_calc['Amount Paid'] = pd.to_numeric(df_calc['Amount Actual Paid'], errors='coerce').fillna(0)
-    else:
-        df_calc['Amount Paid'] = pd.Series(0.0, index=df_calc.index)
-
-    # 2. Deteksi Kolom Status SAP secara Fleksibel (Mencakup kata 'Status' atau 'SAP')
-    col_status_sap = next((c for c in df_calc.columns if 'status' in c.lower() and 'sap' in c.lower()), None)
-    if not col_status_sap:
-        # Fallback jika nama kolom status hanya mengandung kata 'status'
-        col_status_sap = next((c for c in df_calc.columns if 'status' in c.lower()), None)
-
-    if col_status_sap:
+    col_status_sap = 'StatusSAP' if 'StatusSAP' in df_calc.columns else 'Status SAP'
+    if col_status_sap in df_calc.columns:
         sap_status_clean = df_calc[col_status_sap].astype(str).str.upper().str.strip()
-        # Meloloskan baris yang statusnya mengandung kata CLEARED atau PAID
-        mask_sap_cleared = sap_status_clean.str.contains('CLEARED|PAID', na=False)
+        mask_sap_cleared = sap_status_clean.isin(['CLEARED', 'PAID', 'CLEARED/PAID'])
         df_calc['Amount SAP Filtered'] = np.where(mask_sap_cleared, df_calc['Amount SAP'], 0)
     else:
-        # Jika kolom status benar-benar tidak ada sama sekali, tampilkan seluruh Amount SAP tanpa filter
         df_calc['Amount SAP Filtered'] = df_calc['Amount SAP']
 
-    # 3. Identifikasi Kolom Payment Month
-    col_m = next((c for c in ['Payment Month', 'Month', 'Periode Month', 'PAYMENT MONTH'] if c in df_calc.columns), 'Payment Month')
+    col_m = 'Payment Month' if 'Payment Month' in df_calc.columns else ('Month' if 'Month' in df_calc.columns else 'Periode Month')
     if col_m not in df_calc.columns:
-        st.warning('Kolom Payment Month tidak ditemukan.')
         return pd.DataFrame(), col_m
 
-    # 4. GroupBy berdasarkan Rows: Payment Month & Values: Sum of Kolom
     summary = df_calc.groupby(col_m, as_index=False, dropna=False).agg({
         'NET AMOUNT': 'sum',
         'Amount SAP Filtered': 'sum',
         'Amount Paid Based on Setoff Data': 'sum',
-        'Amount Paid': 'sum',
+        'Amount Paid': 'sum'
     })
 
-    # 5. Pengurutan Kronologis Payment Month (Lama -> Baru)
-    summary['date_parsed'] = pd.to_datetime(
-        summary[col_m].astype(str), format='%b-%y', errors='coerce'
-    )
-    valid_dates = summary[summary['date_parsed'].notna()].sort_values(
-        'date_parsed', ascending=True
-    )
-    invalid_dates = summary[summary['date_parsed'].isna()]
-
-    summary = pd.concat([valid_dates, invalid_dates], ignore_index=True)
-    summary = summary.drop(columns=['date_parsed'])
-
-    # 6. Formulas: Hitung GAP = Sum of NET AMOUNT - Sum of Amount Paid
+    # Perhitungan GAP diubah menjadi NET AMOUNT - Amount Paid
     summary['GAP'] = summary['NET AMOUNT'] - summary['Amount Paid']
 
-    # 7. Baris Grand Total
     grand_total = pd.DataFrame([{
         col_m: 'Grand Total',
         'NET AMOUNT': summary['NET AMOUNT'].sum(),
         'Amount SAP Filtered': summary['Amount SAP Filtered'].sum(),
         'Amount Paid Based on Setoff Data': summary['Amount Paid Based on Setoff Data'].sum(),
         'Amount Paid': summary['Amount Paid'].sum(),
-        'GAP': summary['GAP'].sum(),
+        'GAP': summary['GAP'].sum()
     }])
 
-    summary_final = pd.concat([summary, grand_total], ignore_index=True)
+    result = pd.concat([summary, grand_total], ignore_index=True)
+    return sort_summary_by_month(result, col_m), col_m
 
-    return summary_final, col_m
-
-
-# Menghasilkan Dataframe Raw (Angka Murni)
 df_summary_raw, col_month_name = generate_reimbursement_summary_table(df_filtered)
 
 if not df_summary_raw.empty:
-
-    # Helper Format Rupiah Sesuai Excel/Gambar
     def fmt_rp(val):
         if abs(val) < 1e-9:
-            return 'Rp -'
+            return "Rp -"
         elif val < 0:
-            return f"-Rp {abs(val):,.0f}".replace(',', '.')
+            return f"-Rp {abs(val):,.0f}".replace(",", ".")
         else:
-            return f"Rp {val:,.0f}".replace(',', '.')
+            return f"Rp {val:,.0f}".replace(",", ".")
 
-    # Render Tabel HTML Berwarna
-    rows_html = ''
+    rows_html = ""
     for idx, row in df_summary_raw.iterrows():
         val_m = row[col_month_name]
-        is_total = val_m == 'Grand Total'
-
-        # Penanganan Label Kosong/None
+        is_total = (val_m == 'Grand Total')
         if pd.isna(val_m) or str(val_m).strip().lower() in ['nan', 'none', '']:
-            val_m = '(blank)'
+            val_m = "(blank)"
 
-        row_class = (
-            'row-total'
-            if is_total
-            else ('row-even' if idx % 2 == 0 else 'row-odd')
-        )
+        row_style = "background-color: #b4c6e7; font-weight: bold;" if is_total else ("background-color: #ffffff;" if idx % 2 == 0 else "background-color: #f2f2f2;")
 
-        # Kolom Setoff Data yang ingin disembunyikan/ditampilkan
-        setoff_td_html = (
-            f'<td class="align-right">'
-            f'{fmt_rp(row["Amount Paid Based on Setoff Data"])}</td>'
-            if show_setoff_col
-            else ''
-        )
+        display_style_setoff = "" if show_setoff_col else "display: none;"
 
         rows_html += f"""
-        <tr class="{row_class}">
-            <td class="align-center">{val_m}</td>
-            <td class="align-right col-bold">{fmt_rp(row['NET AMOUNT'])}</td>
-            <td class="align-right">{fmt_rp(row['Amount SAP Filtered'])}</td>
-            {setoff_td_html}
-            <td class="align-right">{fmt_rp(row['Amount Paid'])}</td>
-            <td class="align-right col-bold">{fmt_rp(row['GAP'])}</td>
+        <tr style="{row_style}">
+            <td style="text-align: center; border: 1px solid #7f7f7f; padding: 5px;">{val_m}</td>
+            <td style="text-align: right; font-weight: bold; border: 1px solid #7f7f7f; padding: 5px;">{fmt_rp(row['NET AMOUNT'])}</td>
+            <td style="text-align: right; border: 1px solid #7f7f7f; padding: 5px;">{fmt_rp(row['Amount SAP Filtered'])}</td>
+            <td style="text-align: right; border: 1px solid #7f7f7f; padding: 5px; {display_style_setoff}">{fmt_rp(row['Amount Paid Based on Setoff Data'])}</td>
+            <td style="text-align: right; border: 1px solid #7f7f7f; padding: 5px;">{fmt_rp(row['Amount Paid'])}</td>
+            <td style="text-align: right; font-weight: bold; border: 1px solid #7f7f7f; padding: 5px;">{fmt_rp(row['GAP'])}</td>
         </tr>
         """
 
-    # Header Kolom Setoff Dinamis
-    setoff_th_html = (
-        '<th class="hdr-blue" style="width: 22%;">Sum of Amount Paid Based on Setoff Data</th>'
-        if show_setoff_col
-        else ''
-    )
+    header_style_setoff = "" if show_setoff_col else "display: none;"
 
     full_html = f"""
     <!DOCTYPE html>
     <html>
     <head>
     <style>
-        body {{ font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: transparent; }}
-        .process-table {{ width: 100%; border-collapse: collapse; font-size: 11px; color: #000000; }}
-        .process-table th, .process-table td {{ border: 1px solid #7f7f7f; padding: 5px 8px; white-space: nowrap; }}
-        
-        /* Stylings & Colors Sesuai Excel */
-        .hdr-month {{ background-color: #d9e1f2; font-weight: bold; text-align: center; vertical-align: middle; }}
-        .hdr-blue {{ background-color: #b4c6e7; font-weight: bold; text-align: center; vertical-align: middle; }}
-        
-        .row-total {{ font-weight: bold; background-color: #b4c6e7; }}
-        .row-even {{ background-color: #ffffff; }}
-        .row-odd {{ background-color: #f2f2f2; }}
-        
-        .align-center {{ text-align: center; }}
-        .align-right {{ text-align: right; }}
-        .col-bold {{ font-weight: bold; }}
+        body {{ font-family: Arial, sans-serif; margin: 0; background-color: transparent; }}
+        table {{ width: 100%; border-collapse: collapse; font-size: 11px; color: #000; }}
+        th {{ border: 1px solid #7f7f7f; padding: 6px; text-align: center; font-weight: bold; }}
     </style>
     </head>
     <body>
     <div style="overflow-x: auto;">
-        <table class="process-table">
+        <table>
             <thead>
                 <tr>
-                    <th class="hdr-month" style="width: 12%;">Payment Month</th>
-                    <th class="hdr-blue" style="width: 18%;">Sum of NET AMOUNT</th>
-                    <th class="hdr-blue" style="width: 20%;">Sum of Amount SAP (Cleared/Paid)</th>
-                    {setoff_th_html}
-                    <th class="hdr-blue" style="width: 16%;">Sum of Amount Paid</th>
-                    <th class="hdr-blue" style="width: 12%;">GAP</th>
+                    <th style="background-color: #d9e1f2; width: 12%;">Payment Month</th>
+                    <th style="background-color: #b4c6e7;">NET AMOUNT</th>
+                    <th style="background-color: #b4c6e7;">Amount SAP</th>
+                    <th style="background-color: #b4c6e7; {header_style_setoff}">Amount Paid Setoff</th>
+                    <th style="background-color: #b4c6e7;">Amount Paid</th>
+                    <th style="background-color: #b4c6e7;">GAP</th>
                 </tr>
             </thead>
             <tbody>
@@ -849,9 +659,8 @@ if not df_summary_raw.empty:
     </body>
     </html>
     """
+    components.html(full_html, height=650, scrolling=False)
 
-    calc_height = min(750, max(200, (len(df_summary_raw) + 2) * 28))
-    components.html(full_html, height=calc_height, scrolling=True)
 # ==========================================
 # 10. REIMBURSEMENT SUMMARY TO TSEL & AGENT
 # ==========================================
