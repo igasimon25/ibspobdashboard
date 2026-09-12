@@ -342,44 +342,48 @@ with col4:
         create_compact_donut_card("DN Issued", val_dn_issued, ny_val, key="kpi_4")
 
 with col5:
-  df_c5 = df_filtered.copy()
-  col_status = 'Status Reimburse Actual'
-  col_paid = 'Amount Paid'
-  col_gap_paid = 'GAP PAID'
+    df_c5 = df_filtered.copy()
+    
+    # Normalisasi semua nama kolom di dataframe (buang spasi ujung, jadikan huruf kapital)
+    df_c5.columns = df_c5.columns.astype(str).str.strip()
+    
+    # Cari nama kolom secara fleksibel untuk mengantisipasi perbedaan di GitHub
+    col_status_candidates = ['Status Reimburse Actual', 'STATUS REIMBURSE ACTUAL', 'Status Reimburse', 'Status']
+    col_paid_candidates = ['Amount Paid', 'AMOUNT PAID', 'Paid']
+    col_gap_candidates = ['GAP PAID', 'Gap Paid', 'gap paid']
+    
+    col_status = next((c for c in col_status_candidates if c in df_c5.columns), None)
+    col_paid = next((c for c in col_paid_candidates if c in df_c5.columns), None)
+    col_gap_paid = next((c for c in col_gap_candidates if c in df_c5.columns), None)
 
-  if (
-      col_status in df_c5.columns
-      and col_paid in df_c5.columns
-      and col_gap_paid in df_c5.columns
-  ):
-    status_clean = df_c5[col_status].astype(str).str.upper().str.strip()
+    if col_status and col_paid and col_gap_paid:
+        status_clean = df_c5[col_status].astype(str).str.upper().str.strip()
 
-    # Bersihkan data numerik dari format teks/simbol
-    df_c5[col_paid] = pd.to_numeric(df_c5[col_paid], errors='coerce').fillna(0.0)
-    df_c5[col_gap_paid] = pd.to_numeric(
-        df_c5[col_gap_paid], errors='coerce'
-    ).fillna(0.0)
+        # Bersihkan data numerik dari format teks/simbol
+        df_c5[col_paid] = pd.to_numeric(df_c5[col_paid], errors='coerce').fillna(0.0)
+        df_c5[col_gap_paid] = pd.to_numeric(df_c5[col_gap_paid], errors='coerce').fillna(0.0)
 
-    # Penjumlahan baris per baris: Amount Paid + GAP PAID
-    total_per_row = df_c5[col_paid] + df_c5[col_gap_paid]
+        # Penjumlahan baris per baris: Amount Paid + GAP PAID
+        total_per_row = df_c5[col_paid] + df_c5[col_gap_paid]
 
-    # 1. Warna Hijau (Done): Filter baris status 'PAID'
-    mask_paid = status_clean == 'PAID'
-    val_done = total_per_row[mask_paid].sum()
+        # 1. Warna Hijau (Done): Filter baris status 'PAID'
+        mask_paid = status_clean == 'PAID'
+        val_done = total_per_row[mask_paid].sum()
 
-    # 2. Warna Merah (NY): Filter baris status 'DN ISSUED'
-    mask_ny = status_clean == 'DN ISSUED'
-    ny_val = total_per_row[mask_ny].sum()
+        # 2. Warna Merah (NY): Filter baris status 'DN ISSUED'
+        mask_ny = status_clean == 'DN ISSUED'
+        ny_val = total_per_row[mask_ny].sum()
 
-    # Total keseluruhan akan otomatis menjumlahkan val_done dan ny_val (mencapai ~88.57M)
-    create_compact_donut_card(
-        'Total Pay In To Huawei', val_done, ny_val, key='kpi_5'
-    )
-  else:
-    st.error(
-        'Kolom yang dibutuhkan (Status Reimburse Actual, Amount Paid, GAP'
-        ' PAID) tidak ditemukan di data!'
-    )
+        # Render kartu donut KPI kelima
+        create_compact_donut_card(
+            'Total Pay In To Huawei', val_done, ny_val, key='kpi_5'
+        )
+    else:
+        # Tampilkan informasi kolom apa saja yang terbaca untuk memudahkan debugging jika masihbeda
+        available_cols = ", ".join(df_c5.columns[:10]) # Tampilkan 10 kolom pertama
+        st.error(
+            f"Kolom target tidak lengkap! Kolom terbaca di server: [{available_cols}..."
+        )
 st.markdown("---")
 
 # ==========================================
