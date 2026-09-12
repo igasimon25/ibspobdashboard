@@ -343,11 +343,23 @@ st.markdown("---")
 # ==========================================
 st.subheader("🔄 End-to-End Process Workflow & SLA")
 
-str_payout_bm = f"Rp{val_payout_bm:,.0f}".replace(",", ".") if val_payout_bm > 0 else "Rp0"
-str_huawei_agent = f"Rp{val_huawei_agent:,.0f}".replace(",", ".") if val_huawei_agent > 0 else "Rp0"
-str_agent_tsel = f"Rp{val_agent_tsel:,.0f}".replace(",", ".") if val_agent_tsel > 0 else "Rp0"
-str_dn_issued = f"Rp{val_dn_issued:,.0f}".replace(",", ".") if val_dn_issued > 0 else "Rp0"
-str_payin_huawei = f"Rp{val_payin_huawei:,.0f}".replace(",", ".") if val_payin_huawei > 0 else "Rp0"
+# 1. Buat filter dataframe khusus untuk StatusSAP Cleared atau Paid
+# Sesuaikan nama kolom jika di excel/sheet Anda menggunakan huruf besar/kecil berbeda
+df_filtered = df[df['StatusSAP'].astype(str).str.contains('Cleared|Paid', case=False, na=False)]
+
+# 2. Definisikan variabel khusus untuk "Telkomsel Paid to Agent" menggunakan AmountSAP
+# Sesuaikan kondisi baris jika metrik ini membutuhkan filter tambahan spesifik per tahapan workflow
+val_tsel_paid_agent = df_filtered['AmountSAP'].sum()
+
+# Contoh jika menggunakan variabel lain untuk tahapan lain (tetap menggunakan AmountSAP dan filter yang sama jika diperlukan):
+str_payout_bm = f"Rp{val_payout_bm:,.0f}".replace(",", ".") if 'val_payout_bm' in locals() and val_payout_bm > 0 else "Rp0"
+str_huawei_agent = f"Rp{val_huawei_agent:,.0f}".replace(",", ".") if 'val_huawei_agent' in locals() and val_huawei_agent > 0 else "Rp0"
+str_agent_tsel = f"Rp{val_agent_tsel:,.0f}".replace(",", ".") if 'val_agent_tsel' in locals() and val_agent_tsel > 0 else "Rp0"
+str_dn_issued = f"Rp{val_dn_issued:,.0f}".replace(",", ".") if 'val_dn_issued' in locals() and val_dn_issued > 0 else "Rp0"
+str_payin_huawei = f"Rp{val_payin_huawei:,.0f}".replace(",", ".") if 'val_payin_huawei' in locals() and val_payin_huawei > 0 else "Rp0"
+
+# Variabel khusus untuk "Telkomsel Paid to Agent"
+str_tsel_paid_agent = f"Rp{val_tsel_paid_agent:,.0f}".replace(",", ".") if val_tsel_paid_agent > 0 else "Rp0"
 
 html_content = f"""
 <!DOCTYPE html>
@@ -367,9 +379,6 @@ html_content = f"""
     .sla-label {{ font-size: 10px; font-weight: bold; color: #555; margin-top: 6px; }}
     .arrow-right {{ font-size: 20px; color: #1f497d; font-weight: bold; margin-top: 45px; }}
     .arrow-down {{ font-size: 22px; color: #1f497d; font-weight: bold; text-align: right; padding-right: 40px; margin-top: -10px; margin-bottom: -10px; }}
-    .legend-container {{ display: flex; justify-content: flex-end; gap: 15px; margin-top: 20px; }}
-    .legend-item {{ display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: bold; color: #333; }}
-    .legend-box {{ width: 30px; height: 14px; border-radius: 3px; border: 1px solid #ccc; }}
 </style>
 </head>
 <body>
@@ -410,7 +419,8 @@ html_content = f"""
         </div>
         <div class="arrow-right">➔</div>
         <div class="flow-card-wrapper">
-            <div class="amount-badge">{str_agent_tsel}</div>
+            <!-- TERAPKAN NILAI BERDASARKAN AmountSAP & StatusSAP Cleared/Paid DI SINI -->
+            <div class="amount-badge">{str_tsel_paid_agent}</div>
             <div class="flow-card card-telkomsel">Telkomsel Paid to Agent</div>
             <div class="sla-label">SLA 2-4 Weeks</div>
         </div>
