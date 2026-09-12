@@ -341,6 +341,23 @@ st.markdown("---")
 # ==========================================
 # 6. END-TO-END PROCESS WORKFLOW & SLA
 # ==========================================
+# Pastikan variabel penampung aman dari NameError dengan inisialisasi awal
+val_payout_bm = locals().get('val_payout_bm', 0)
+val_huawei_agent = locals().get('val_huawei_agent', 0)
+val_agent_tsel = locals().get('val_agent_tsel', 0)
+val_dn_issued = locals().get('val_dn_issued', 0)
+val_payin_huawei = locals().get('val_payin_huawei', 0)
+# val_tsel_paid_agent sudah diambil dari AmountSAP sebelumnya
+
+# Format string mata uang Rupiah
+str_payout_bm = f"Rp{val_payout_bm:,.0f}".replace(",", ".") if val_payout_bm > 0 else "Rp0"
+str_huawei_agent = f"Rp{val_huawei_agent:,.0f}".replace(",", ".") if val_huawei_agent > 0 else "Rp0"
+str_agent_tsel = f"Rp{val_agent_tsel:,.0f}".replace(",", ".") if val_agent_tsel > 0 else "Rp0"
+str_dn_issued = f"Rp{val_dn_issued:,.0f}".replace(",", ".") if val_dn_issued > 0 else "Rp0"
+str_payin_huawei = f"Rp{val_payin_huawei:,.0f}".replace(",", ".") if val_payin_huawei > 0 else "Rp0"
+str_tsel_paid_agent = f"Rp{val_tsel_paid_agent:,.0f}".replace(",", ".") if val_tsel_paid_agent > 0 else "Rp0"
+
+
 st.subheader("🔄 End-to-End Process Workflow & SLA")
 
 html_content = f"""
