@@ -659,6 +659,10 @@ st.markdown("---")
 # ==========================================
 st.subheader("📊 Process Reimbursement Summary")
 
+# --- DEBUGGING: Tampilkan semua kolom yang ada di df_filtered ---
+with st.expander("🔍 Cek Nama Kolom di Excel (Debug)", expanded=False):
+    st.write("Daftar kolom yang terbaca:", list(df_filtered.columns))
+
 # Tombol Pilihan untuk menampilkan/menyembunyikan kolom Setoff Data
 show_setoff_col = st.checkbox("Show 'Setoff Data'", value=False)
 
@@ -687,15 +691,19 @@ def generate_reimbursement_summary_table(df):
     else:
         df_calc['Amount Paid'] = pd.Series(0.0, index=df_calc.index)
 
-    # 2. Filter Fleksibel Kolom Amount SAP Berdasarkan Status SAP (Aman untuk GitHub)
-    col_status_sap = next((c for c in ['StatusSAP', 'Status SAP', 'STATUS SAP', 'Status_SAP'] if c in df_calc.columns), None)
-    
+    # 2. Deteksi Kolom Status SAP secara Fleksibel (Mencakup kata 'Status' atau 'SAP')
+    col_status_sap = next((c for c in df_calc.columns if 'status' in c.lower() and 'sap' in c.lower()), None)
+    if not col_status_sap:
+        # Fallback jika nama kolom status hanya mengandung kata 'status'
+        col_status_sap = next((c for c in df_calc.columns if 'status' in c.lower()), None)
+
     if col_status_sap:
         sap_status_clean = df_calc[col_status_sap].astype(str).str.upper().str.strip()
-        # Mencakup berbagai variasi penulisan status cleared/paid agar tidak kosong di GitHub
-        mask_sap_cleared = sap_status_clean.isin(['CLEARED/PAID', 'CLEARED', 'PAID', 'CLEARED / PAID'])
+        # Meloloskan baris yang statusnya mengandung kata CLEARED atau PAID
+        mask_sap_cleared = sap_status_clean.str.contains('CLEARED|PAID', na=False)
         df_calc['Amount SAP Filtered'] = np.where(mask_sap_cleared, df_calc['Amount SAP'], 0)
     else:
+        # Jika kolom status benar-benar tidak ada sama sekali, tampilkan seluruh Amount SAP tanpa filter
         df_calc['Amount SAP Filtered'] = df_calc['Amount SAP']
 
     # 3. Identifikasi Kolom Payment Month
