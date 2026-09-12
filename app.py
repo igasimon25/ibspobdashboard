@@ -185,7 +185,16 @@ if 'new regional' in df_filtered.columns:
     if selected_reg != "(All Regionals)":
         df_filtered = df_filtered[df_filtered['new regional'].astype(str) == selected_reg]
 
+import streamlit as st
 
+# Tempatkan di bagian atas skrip utama Anda
+st.sidebar.title("Navigasi & Kontrol")
+
+# Tombol Refresh Global di Sidebar
+if st.sidebar.button("🔄 Refresh Global / Clear Cache", use_container_width=True):
+    st.cache_data.clear()
+    st.success("Semua cache berhasil dibersihkan!")
+    st.rerun()
 # ==========================================
 # FUNGSI HELPER: COMPACT DONUT CHART (KPI)
 # ==========================================
